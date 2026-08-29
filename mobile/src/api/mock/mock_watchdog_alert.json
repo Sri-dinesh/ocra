@@ -1,7 +1,0 @@
-{
-  "alert_type": "IMBL_PROXIMITY",
-  "severity": "critical",
-  "vessel_id": "demo-vessel-01",
-  "message": "You are 1.2nm from the International Maritime Boundary Line. Recommend course correction.",
-  "triggered_at": "2026-08-29T06:42:00+05:30"
-}
