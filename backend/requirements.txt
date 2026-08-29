@@ -1,0 +1,38 @@
+# FastAPI & Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# AI & Multi-Agent Orchestration
+langchain>=0.1.12
+langchain-core>=0.1.30
+langchain-google-genai>=1.0.1
+langgraph>=0.0.30
+google-generativeai>=0.4.1
+
+# Database & PostGIS
+sqlalchemy>=2.0.28
+geoalchemy2>=0.14.4
+psycopg2-binary>=2.9.9
+asyncpg>=0.29.0
+
+# Geospatial & Scientific Processing
+geopandas>=0.14.3
+shapely>=2.0.3
+pandas>=2.2.1
+xarray>=2024.2.0
+netCDF4>=1.6.5
+numpy>=1.26.4
+scipy>=1.12.0
+
+# Data Source Clients & Networking
+httpx>=0.27.0
+requests>=2.31.0
+erddapy>=2.2.0
+pyobis>=1.3.1
+
+# Utilities & Testing
+python-dotenv>=1.0.1
+pytest>=8.1.1
+pytest-asyncio>=0.23.5
