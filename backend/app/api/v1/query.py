@@ -1,11 +1,15 @@
 """Production-Grade POST /api/v1/query Handler.
-Executes LangGraph decision pipeline and returns structured decision-intelligence recommendations.
+Specification: docs/Backend_Workflow.md §3, §7.3.8-10
+Features:
+- LangGraph decision execution with guardrail validation & risk scoring.
+- High-performance in-memory LRU trace store for rapid audit inspection.
+- Relational database persistence into query_logs, plan_steps, and evidence_items with resilient non-blocking fallback.
 Owner: SRIDINESH (Lead)
 """
 
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from collections import OrderedDict
 from fastapi import APIRouter, HTTPException, status
 from app.schemas.query import QueryRequest, QueryResponse, EvidenceItem
@@ -13,6 +17,8 @@ from app.agents.graph import run_agent_graph
 from app.agents.state import AgentState, LocationContext
 from app.reasoning.evidence import build_evidence_trace
 from app.core.logging import logger
+from app.db.session import SessionLocal
+from app.models import QueryLog, PlanStep, EvidenceItem as EvidenceItemModel, Source
 
 router = APIRouter(tags=["Query"])
 
@@ -26,6 +32,73 @@ def save_trace_record(query_id: str, record: Dict[str, Any]):
     if len(QUERY_TRACE_STORE) >= MAX_TRACE_CACHE_SIZE:
         QUERY_TRACE_STORE.popitem(last=False)  # Evict oldest entry
     QUERY_TRACE_STORE[query_id] = record
+
+
+def persist_relational_query_trace(query_id: str, state: AgentState, evidence_items: list):
+    """Persist query trace, plan steps, and evidence items relationally into Postgres (§7.3.8-10)."""
+    db = SessionLocal()
+    try:
+        loc = state.get("location") or {}
+        time_win = state.get("time_window") or {}
+
+        # 1. Query Log Header
+        query_log = QueryLog(
+            id=uuid.UUID(query_id) if isinstance(query_id, str) else query_id,
+            raw_query=state.get("raw_query", ""),
+            detected_language=state.get("language", "en-IN"),
+            role=state.get("role", "fisherman"),
+            intent=state.get("intent", "general_query"),
+            location_lat=loc.get("lat"),
+            location_lon=loc.get("lon"),
+            risk_score=state.get("risk_score"),
+            risk_band=state.get("risk_band"),
+            sail_clearance=state.get("sail_allowed"),
+            final_response_text=state.get("final_response") or state.get("recommendation"),
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(query_log)
+
+        # 2. Plan Steps Execution Trace (§7.3.9)
+        telemetry = state.get("telemetry") or {}
+        nodes_exec = telemetry.get("nodes_executed", ["Planner", "Ocean", "Weather", "GIS", "Guardrail", "RiskEngine", "Synthesis"])
+        for idx, node in enumerate(nodes_exec):
+            step_name = node.lower()
+            if step_name not in ["planner", "ocean", "weather", "gis", "guardrail", "risk", "synthesis"]:
+                step_name = "planner"
+            plan_step = PlanStep(
+                query_log_id=query_log.id,
+                agent_name=step_name,
+                step_order=idx + 1,
+                status="success",
+                duration_ms=telemetry.get("latency_ms", {}).get(node, 10),
+            )
+            db.add(plan_step)
+
+        # 3. Evidence Items Relational Rows (§7.3.10)
+        source_cache = {s.code: s.id for s in db.query(Source).all()}
+        for item in evidence_items:
+            # Map source name to source code
+            src_str = item.source.lower()
+            src_code = "incois_osf" if "incois" in src_str else ("copernicus_cmems" if "copernicus" in src_str else ("noaa_erddap" if "noaa" in src_str else ("imd_bulletin" if "imd" in src_str else None)))
+            src_id = source_cache.get(src_code)
+
+            ev_row = EvidenceItemModel(
+                query_log_id=query_log.id,
+                claim_text=item.claim,
+                supporting_value=float(item.supporting_value) if isinstance(item.supporting_value, (int, float)) else None,
+                source_id=src_id,
+                quality="good",
+                fetched_at=datetime.now(timezone.utc),
+            )
+            db.add(ev_row)
+
+        db.commit()
+        logger.info(f"[DB] Relational query trace [{query_id}] persisted with {len(nodes_exec)} steps & {len(evidence_items)} evidence rows.")
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"[DB] Non-blocking trace persistence skipped for [{query_id}]: {e}")
+    finally:
+        db.close()
 
 
 @router.post(
@@ -75,7 +148,7 @@ async def query_marine_intelligence(req: QueryRequest) -> QueryResponse:
     evidence_items = build_evidence_trace(final_state)
     created_at = datetime.now(timezone.utc).isoformat()
 
-    # Save to audit trail cache
+    # Save to audit trail in-memory cache
     audit_record = {
         "query_id": query_id,
         "raw_query": req.text.strip(),
@@ -96,14 +169,15 @@ async def query_marine_intelligence(req: QueryRequest) -> QueryResponse:
     }
     save_trace_record(query_id, audit_record)
 
-    # MERGE: Sridinesh writes to Charan's PostgreSQL query_logs table once Supabase session is available
+    # Persist relationally to Postgres (§7.3.8-10, §6)
+    persist_relational_query_trace(query_id, final_state, evidence_items)
 
     return QueryResponse(
         query_id=query_id,
         intent=final_state.get("intent", "general_query"),
         recommendation=final_state.get(
             "final_response",
-            final_state.get("recommendation", "Clear to sail east from Kakinada."),
+            final_state.get("recommendation", "Clear to sail from Kakinada."),
         ),
         risk_score=final_state.get("risk_score"),
         risk_band=final_state.get("risk_band"),
