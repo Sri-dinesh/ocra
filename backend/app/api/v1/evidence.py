@@ -1,25 +1,33 @@
-"""GET /api/v1/evidence/{query_id} Endpoint Handler.
-Retrieves full audit evidence traces for past queries.
+"""Production-Grade GET /api/v1/evidence/{query_id} Handler.
+Retrieves full explainability audit trails for prior marine queries.
 Owner: SRIDINESH (Lead)
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from app.schemas.query import EvidenceDetailResponse, EvidenceItem
 from app.api.v1.query import QUERY_TRACE_STORE
 
 router = APIRouter(tags=["Evidence"])
 
 
-@router.get("/evidence/{query_id}", response_model=EvidenceDetailResponse)
+@router.get(
+    "/evidence/{query_id}",
+    response_model=EvidenceDetailResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Retrieve Explainability Audit Trace",
+)
 async def get_evidence_trace(query_id: str) -> EvidenceDetailResponse:
-    """Retrieve full audit evidence trail for a specific query ID."""
-    trace = QUERY_TRACE_STORE.get(query_id)
+    """Retrieve full audit evidence trail for a specific query ID.
+    Used for 'Show the Math' judge auditing and regulatory compliance.
+    """
+    clean_id = query_id.strip()
+    trace = QUERY_TRACE_STORE.get(clean_id)
 
-    # Fallback to default mock trace if requesting demo/sample query ID
+    # Deterministic fallback for default mock query ID (for demo resilience)
     if not trace:
-        if query_id == "f3a1c2e0-7b24-4f8e-9d21-9e5c6a1b2c3d":
+        if clean_id in ["f3a1c2e0-7b24-4f8e-9d21-9e5c6a1b2c3d", "default", "sample"]:
             return EvidenceDetailResponse(
-                query_id=query_id,
+                query_id=clean_id,
                 raw_query="Can I go fishing tomorrow morning near Kakinada?",
                 plan={
                     "intent": "sail_clearance",
@@ -28,20 +36,30 @@ async def get_evidence_trace(query_id: str) -> EvidenceDetailResponse:
                 },
                 evidence=[
                     EvidenceItem(
-                        claim="Wave height 1.8m",
+                        claim="Significant wave height 1.8m",
                         source="INCOIS OSF",
                         fetched_at="2026-08-28T22:10:00+05:30",
+                        supporting_value=1.8,
                     ),
                     EvidenceItem(
-                        claim="No active cyclone bulletin for this cell",
+                        claim="Surface wind speed 14 kt",
+                        source="INCOIS OSF",
+                        fetched_at="2026-08-28T22:10:00+05:30",
+                        supporting_value=14.0,
+                    ),
+                    EvidenceItem(
+                        claim="No active cyclone bulletin for this coastal cell",
                         source="IMD",
                         fetched_at="2026-08-28T21:00:00+05:30",
+                        supporting_value="low",
                     ),
                 ],
                 created_at="2026-08-28T22:11:03+05:30",
             )
+
         raise HTTPException(
-            status_code=404, detail=f"No evidence trace found for query_id '{query_id}'"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Audit trace for query_id '{clean_id}' not found.",
         )
 
     evidence_items = [

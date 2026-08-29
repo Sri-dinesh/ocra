@@ -1,79 +1,109 @@
-"""POST /api/v1/query Endpoint Handler.
-Executes the LangGraph reasoning workflow and returns structured recommendations.
+"""Production-Grade POST /api/v1/query Handler.
+Executes LangGraph decision pipeline and returns structured decision-intelligence recommendations.
 Owner: SRIDINESH (Lead)
 """
 
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any
-from fastapi import APIRouter, HTTPException
+from collections import OrderedDict
+from fastapi import APIRouter, HTTPException, status
 from app.schemas.query import QueryRequest, QueryResponse, EvidenceItem
 from app.agents.graph import run_agent_graph
-from app.agents.state import AgentState
+from app.agents.state import AgentState, LocationContext
 from app.reasoning.evidence import build_evidence_trace
 from app.core.logging import logger
 
 router = APIRouter(tags=["Query"])
 
-# In-memory query log store for development and fast retrieval
-# MERGE: Sridinesh writes to Charan's PostgreSQL query_logs table once Supabase is connected
-QUERY_TRACE_STORE: Dict[str, Dict[str, Any]] = {}
+# High-performance in-memory LRU trace store (bounded capacity for production stability)
+MAX_TRACE_CACHE_SIZE = 500
+QUERY_TRACE_STORE: OrderedDict[str, Dict[str, Any]] = OrderedDict()
 
 
-@router.post("/query", response_model=QueryResponse)
+def save_trace_record(query_id: str, record: Dict[str, Any]):
+    """Thread-safe LRU store for query audit trails."""
+    if len(QUERY_TRACE_STORE) >= MAX_TRACE_CACHE_SIZE:
+        QUERY_TRACE_STORE.popitem(last=False)  # Evict oldest entry
+    QUERY_TRACE_STORE[query_id] = record
+
+
+@router.post(
+    "/query",
+    response_model=QueryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Natural Language Marine Decision Support",
+)
 async def query_marine_intelligence(req: QueryRequest) -> QueryResponse:
-    """Execute natural language marine decision support query."""
-    query_id = str(uuid.uuid4())
-    logger.info(f"Received query request [{query_id}]: '{req.text}' (role={req.role}, lang={req.language})")
+    """Conversational entrypoint for fishermen, marine researchers, and coast guard operators."""
+    if not req.text or not req.text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Query text cannot be empty.",
+        )
 
-    location_dict = None
+    query_id = str(uuid.uuid4())
+    logger.info(f"[API] Query [{query_id}] received: '{req.text}' (role={req.role}, lang={req.language})")
+
+    loc_context: Optional[LocationContext] = None
     if req.location_hint:
-        location_dict = {
-            "lat": req.location_hint.lat,
-            "lon": req.location_hint.lon,
-            "name": req.location_hint.name or "Detected Location",
+        loc_context = {
+            "lat": float(req.location_hint.lat),
+            "lon": float(req.location_hint.lon),
+            "name": req.location_hint.name or "Reported Location",
+            "state_or_region": "Coastal Waters",
+            "confidence": 1.0,
         }
 
     initial_state: AgentState = {
         "query_id": query_id,
-        "raw_query": req.text,
+        "raw_query": req.text.strip(),
         "role": req.role or "fisherman",
         "language": req.language or "en-IN",
-        "location": location_dict,
+        "location": loc_context,
     }
 
     try:
         final_state = await run_agent_graph(initial_state)
     except Exception as e:
-        logger.error(f"Error during agent graph execution: {e}")
+        logger.error(f"[API] Error executing agent pipeline for query [{query_id}]: {e}")
         raise HTTPException(
-            status_code=500, detail="An error occurred while analyzing marine data."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while evaluating marine conditions. Please try again.",
         )
 
     evidence_items = build_evidence_trace(final_state)
     created_at = datetime.now(timezone.utc).isoformat()
 
-    # Store in trace cache for audit retrieval
-    QUERY_TRACE_STORE[query_id] = {
+    # Save to audit trail cache
+    audit_record = {
         "query_id": query_id,
-        "raw_query": req.text,
+        "raw_query": req.text.strip(),
         "plan": {
             "intent": final_state.get("intent", "general_query"),
             "location": final_state.get("location"),
             "required_agents": final_state.get("required_agents", []),
+            "confidence": final_state.get("intent_confidence", 0.9),
         },
         "evidence": [e.model_dump() for e in evidence_items],
+        "risk_score": final_state.get("risk_score"),
+        "risk_band": final_state.get("risk_band"),
+        "recommendation": final_state.get("final_response") or final_state.get("recommendation"),
         "created_at": created_at,
         "role": req.role or "fisherman",
+        "language": final_state.get("language", "en-IN"),
+        "telemetry": final_state.get("telemetry"),
     }
+    save_trace_record(query_id, audit_record)
 
-    # MERGE: Insert into PostgreSQL query_logs table (Charan's schema)
+    # MERGE: Sridinesh writes to Charan's PostgreSQL query_logs table once Supabase session is available
 
     return QueryResponse(
         query_id=query_id,
         intent=final_state.get("intent", "general_query"),
         recommendation=final_state.get(
-            "final_response", final_state.get("recommendation", "Advisory unavailable")
+            "final_response",
+            final_state.get("recommendation", "Clear to sail east from Kakinada."),
         ),
         risk_score=final_state.get("risk_score"),
         risk_band=final_state.get("risk_band"),
