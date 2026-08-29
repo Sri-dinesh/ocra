@@ -1,28 +1,32 @@
-"""POST /api/v1/watchdog/subscribe handler.
-Owner: CHARAN (Backend-B)
-"""
-
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from app.db.session import get_db
+from sqlalchemy.orm import Session
+from app.models.vessel import Vessel
 
-router = APIRouter(prefix="/watchdog", tags=["Watchdog"])
+router = APIRouter()
 
+class SubscribeRequest(BaseModel):
+    label: str
+    lat: float
+    lon: float
 
-class WatchdogSubscribeRequest(BaseModel):
+class SubscribeResponse(BaseModel):
     vessel_id: str
+    message: str
 
-
-class WatchdogSubscribeResponse(BaseModel):
-    subscribed: bool
-    vessel_id: str
-    poll_interval_seconds: int = 30
-
-
-@router.post("/subscribe", response_model=WatchdogSubscribeResponse)
-async def subscribe_watchdog(req: WatchdogSubscribeRequest) -> WatchdogSubscribeResponse:
-    """Subscribe a vessel ID for proactive hazard and geofence monitoring."""
-    return WatchdogSubscribeResponse(
-        subscribed=True,
-        vessel_id=req.vessel_id,
-        poll_interval_seconds=30,
+@router.post("/subscribe", response_model=SubscribeResponse)
+def subscribe_vessel(req: SubscribeRequest, db: Session = Depends(get_db)):
+    vessel = Vessel(
+        label=req.label,
+        lat=req.lat,
+        lon=req.lon
+    )
+    db.add(vessel)
+    db.commit()
+    db.refresh(vessel)
+    
+    return SubscribeResponse(
+        vessel_id=str(vessel.id),
+        message="Vessel subscribed to watchdog polling successfully."
     )
