@@ -1,15 +1,15 @@
-"""Abstract Base Connector Interface.
-Owner: CHARAN (Backend-B)
-"""
-
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+import datetime
+from typing import Any
 
-
-class BaseDataConnector(ABC):
-    """Common interface for all external marine/weather data adapters."""
+class DataConnector(ABC):
+    """Abstract base class for all data connectors."""
 
     @abstractmethod
-    async def fetch(self, lat: float, lon: float, time_window: Optional[str] = None) -> Dict[str, Any]:
-        """Fetch and normalize data from provider."""
+    def fetch(self, lat: float, lon: float, time_window: datetime.datetime) -> Any:
+        """
+        Fetch data for a given location and time.
+        Must return a structured dict or list depending on the connector,
+        or None if the fetch fails (should not raise exceptions).
+        """
         pass

@@ -1,12 +1,18 @@
-"""INCOIS Potential Fishing Zone (PFZ) Connector.
-Owner: CHARAN (Backend-B)
-"""
+import logging
+import datetime
+from typing import Any
+from app.connectors.base import DataConnector
+from app.connectors.mock_fallback import get_mock_pfz
+from app.core.config import settings
 
-from typing import Dict, Any, Optional
-from app.connectors.base import BaseDataConnector
+logger = logging.getLogger(__name__)
 
+class IncoisPfzConnector(DataConnector):
+    def fetch(self, lat: float, lon: float, time_window: datetime.datetime) -> Any:
+        if settings.USE_MOCK_CONNECTORS:
+            logger.info("Using mock INCOIS PFZ data")
+            return get_mock_pfz(lat, lon, time_window)
 
-class IncoisPfzConnector(BaseDataConnector):
-    async def fetch(self, lat: float, lon: float, time_window: Optional[str] = None) -> Dict[str, Any]:
-        # TODO (CHARAN): Implement INCOIS PFZ retrieval in Phase 2
-        return {"pfz_candidates": []}
+        # TODO: Implement real INCOIS PFZ HTTP request once endpoint is confirmed
+        logger.warning("Real INCOIS PFZ connector not fully implemented, returning None")
+        return None
