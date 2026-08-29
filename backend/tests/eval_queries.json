@@ -1,0 +1,128 @@
+[
+  {
+    "id": "Q01",
+    "query": "Can I go fishing tomorrow morning near Kakinada?",
+    "language": "en-IN",
+    "role": "fisherman",
+    "expected_intent": "sail_clearance",
+    "expected_location": "Kakinada",
+    "expected_agents": ["ocean", "weather", "gis"]
+  },
+  {
+    "id": "Q02",
+    "query": "நாளை காலை காக்கிநாடாவில் மீன்பிடிக்க செல்லலாமா?",
+    "language": "ta-IN",
+    "role": "fisherman",
+    "expected_intent": "sail_clearance",
+    "expected_location": "Kakinada",
+    "expected_agents": ["ocean", "weather", "gis"]
+  },
+  {
+    "id": "Q03",
+    "query": "क्या कल सुबह काकीनाडा के पास मछली पकड़ने जा सकते हैं?",
+    "language": "hi-IN",
+    "role": "fisherman",
+    "expected_intent": "sail_clearance",
+    "expected_location": "Kakinada",
+    "expected_agents": ["ocean", "weather", "gis"]
+  },
+  {
+    "id": "Q04",
+    "query": "రేపు ఉదయం కాకినాడ దగ్గర చేపల వేటకు వెళ్ళవచ్చా?",
+    "language": "te-IN",
+    "role": "fisherman",
+    "expected_intent": "sail_clearance",
+    "expected_location": "Kakinada",
+    "expected_agents": ["ocean", "weather", "gis"]
+  },
+  {
+    "id": "Q05",
+    "query": "Is it safe to sail from Chennai harbor tonight?",
+    "language": "en-IN",
+    "role": "fisherman",
+    "expected_intent": "sail_clearance",
+    "expected_location": "Chennai",
+    "expected_agents": ["ocean", "weather", "gis"]
+  },
+  {
+    "id": "Q06",
+    "query": "Show me the best PFZ zones near Rameswaram.",
+    "language": "en-IN",
+    "role": "fisherman",
+    "expected_intent": "pfz_lookup",
+    "expected_location": "Rameswaram",
+    "expected_agents": ["ocean", "gis"]
+  },
+  {
+    "id": "Q07",
+    "query": "Where is the highest tuna fish catch density near Visakhapatnam?",
+    "language": "en-IN",
+    "role": "fisherman",
+    "expected_intent": "pfz_lookup",
+    "expected_location": "Visakhapatnam",
+    "expected_agents": ["ocean", "gis"]
+  },
+  {
+    "id": "Q08",
+    "query": "Are sea surface temperatures anomalous near Paradip?",
+    "language": "en-IN",
+    "role": "researcher",
+    "expected_intent": "anomaly_detection",
+    "expected_location": "Paradip",
+    "expected_agents": ["ocean", "weather"]
+  },
+  {
+    "id": "Q09",
+    "query": "What is the chlorophyll concentration trend off Kochi?",
+    "language": "en-IN",
+    "role": "researcher",
+    "expected_intent": "anomaly_detection",
+    "expected_location": "Kochi",
+    "expected_agents": ["ocean", "weather"]
+  },
+  {
+    "id": "Q10",
+    "query": "Calculate the safe navigation route from Kakinada to waypoint 17.15N 82.45E avoiding IMBL.",
+    "language": "en-IN",
+    "role": "coast_guard",
+    "expected_intent": "route_request",
+    "expected_location": "Kakinada",
+    "expected_agents": ["ocean", "gis"]
+  },
+  {
+    "id": "Q11",
+    "query": "What is the wave height near Tuticorin?",
+    "language": "en-IN",
+    "role": "fisherman",
+    "expected_intent": "general_query",
+    "expected_location": "Tuticorin",
+    "expected_agents": ["ocean", "weather", "gis"]
+  },
+  {
+    "id": "Q12",
+    "query": "Can I sail?",
+    "language": "en-IN",
+    "role": "fisherman",
+    "expected_intent": "clarification_needed",
+    "expected_location": null,
+    "expected_agents": []
+  },
+  {
+    "id": "Q13",
+    "query": "Is fishing safe near Mangalore with approaching cyclone?",
+    "language": "en-IN",
+    "role": "fisherman",
+    "expected_intent": "sail_clearance",
+    "expected_location": "Mangalore",
+    "expected_agents": ["ocean", "weather", "gis"]
+  },
+  {
+    "id": "Q14",
+    "query": "What are current wind speeds around Mumbai offshore?",
+    "language": "en-IN",
+    "role": "policymaker",
+    "expected_intent": "general_query",
+    "expected_location": "Mumbai",
+    "expected_agents": ["ocean", "weather", "gis"]
+  }
+]
