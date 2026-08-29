@@ -2,20 +2,20 @@
 
 import pytest
 from app.db.session import engine, Base
-# Import models to ensure registration
-from app.models.ocean_state import OceanState
-from app.models.zone import Zone
-from app.models.hazard import Hazard
-from app.models.vessel import Vessel
-from app.models.query_log import QueryLog
+from app.db.init_db import init_db
+from app.db.seed_zones import main as seed_zones
 
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database():
-    """Create all tables before test session runs."""
-    Base.metadata.create_all(bind=engine)
+    """Drop and recreate all relational tables and seed sources/zones."""
+    Base.metadata.drop_all(bind=engine)
+    init_db()
+    try:
+        seed_zones()
+    except Exception:
+        pass
     yield
-    # Cleanup
 
 
 @pytest.fixture
