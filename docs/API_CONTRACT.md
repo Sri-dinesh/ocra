@@ -240,9 +240,9 @@ Sridinesh's `backend/app/agents/_stubs.py` is written to match these exact signa
 
 | Stub function (Sridinesh's `_stubs.py`) | Real function (Charan's code) | Signature |
 |---|---|---|
-| `stub_fetch_ocean_data(lat, lon, time_window)` | `app.geospatial.fusion.fuse(lat, lon, time_window)` | *confirm return shape matches `ocean_states` row* |
-| `stub_fetch_weather_hazard(lat, lon, time_window)` | `app.connectors.imd_bulletin.fetch(lat, lon, time_window)` | *confirm return shape matches `hazards` list* |
-| `stub_check_geofence(lat, lon)` | `app.geospatial.geofence.check_point(lat, lon)` | *confirm return shape matches `zones` list* |
+| `stub_fetch_ocean_data(lat, lon, time_window)` | `app.geospatial.fusion.fuse(lat, lon, time_window)` | `def fuse(lat: float, lon: float, time_window: datetime.datetime) -> dict` |
+| `stub_fetch_weather_hazard(lat, lon, time_window)` | `app.connectors.imd_bulletin.fetch(lat, lon, time_window)` | `def fetch(self, lat: float, lon: float, time_window: datetime.datetime) -> Any` |
+| `stub_check_geofence(lat, lon)` | `app.geospatial.geofence.check_point(lat, lon)` | `def check_point(lat: float, lon: float) -> list[dict]` |
 
 Once filled in, merge day becomes: delete `_stubs.py`, update the three import lines in `backend/app/agents/graph.py` (each already marked `# MERGE:` per Sridinesh's Task S6.3), run the eval set (Task S8.2), done.
 

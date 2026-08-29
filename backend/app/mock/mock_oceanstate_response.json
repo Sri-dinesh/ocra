@@ -5,10 +5,7 @@
   "sst_c": 28.2,
   "chl_a_mgm3": 1.4,
   "wave_height_m": 1.8,
-  "wind_speed_kt": 14.0,
-  "source_map": {
-    "sst_c": "Copernicus CMEMS",
-    "wave_height_m": "INCOIS OSF"
-  },
+  "wind_speed_kt": 14,
+  "source_map": { "sst_c": "Copernicus CMEMS", "wave_height_m": "INCOIS OSF" },
   "quality": "good"
 }
