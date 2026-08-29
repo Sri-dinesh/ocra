@@ -32,7 +32,7 @@ from app.agents.graph import run_agent_graph
 # ==============================================================================
 # 1. PLANNER & GAZETTEER TESTS
 # ==============================================================================
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_planner_english_query():
     """Verify Planner extracts intent, coordinates, and required agents for English query."""
     state = await plan("Can I go fishing tomorrow morning near Kakinada?")
@@ -43,7 +43,7 @@ async def test_planner_english_query():
     assert set(state["required_agents"]) == {"ocean", "weather", "gis"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_planner_tamil_query():
     """Verify Gazetteer correctly matches Tamil script transliterations."""
     state = await plan("நாளை காலை காக்கிநாடாவில் மீன்பிடிக்க செல்லலாமா?", language="ta-IN")
@@ -52,7 +52,7 @@ async def test_planner_tamil_query():
     assert state["language"] == "ta-IN"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_planner_hindi_query():
     """Verify Gazetteer correctly matches Hindi script transliterations."""
     state = await plan("क्या कल सुबह विशाखापट्टनम में मछली पकड़ सकते हैं?", language="hi-IN")
@@ -60,7 +60,7 @@ async def test_planner_hindi_query():
     assert state["location"]["name"] == "Visakhapatnam"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_planner_clarification_short_circuit():
     """Verify ambiguous query with no location triggers clarification fallback."""
     state = await plan("Can I sail?")
@@ -92,7 +92,9 @@ def test_guardrail_tolerance_claim_validation():
 
 def test_guardrail_sla_freshness():
     """Verify source-specific freshness SLA validation."""
-    assert check_freshness("2026-08-29T06:00:00+05:30", "INCOIS OSF") == "good"
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat()
+    assert check_freshness(now_iso, "INCOIS OSF") == "good"
     assert check_freshness(None, "IMD") == "stale"
 
 
@@ -146,7 +148,7 @@ def test_pfz_mcda_ranking():
 # ==============================================================================
 # 4. LANGGRAPH PIPELINE & API ENDPOINT TESTS
 # ==============================================================================
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_full_agent_graph_execution():
     """Verify complete LangGraph pipeline runs and populates execution telemetry."""
     initial: AgentState = {
@@ -164,7 +166,7 @@ async def test_full_agent_graph_execution():
     assert "Planner" in final["telemetry"]["nodes_executed"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_and_evidence_api_flow():
     """Verify FastAPI /api/v1/query and /api/v1/evidence/{id} integration."""
     transport = ASGITransport(app=app)

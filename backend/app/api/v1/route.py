@@ -7,7 +7,7 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("", response_model=RouteResponse)
+@router.post("/route", response_model=RouteResponse)
 def get_route(req: RouteRequest):
     start = (req.start.lat, req.start.lon)
     goal = (req.goal.lat, req.goal.lon)

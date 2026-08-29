@@ -9,7 +9,7 @@ import math
 
 router = APIRouter()
 
-@router.get("", response_model=OceanStateResponse)
+@router.get("/oceanstate", response_model=OceanStateResponse)
 def get_ocean_state(
     lat: float, 
     lon: float, 

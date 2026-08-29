@@ -148,7 +148,7 @@ def rule_based_intent_classifier(query_text: str) -> Tuple[str, float]:
     """Deterministic intent classifier with high accuracy for marine terminology."""
     text = query_text.lower()
     
-    if any(k in text for k in ["safe", "sail", "fishing", "go out", "leave port", "clearance", "மீன்பிடிக்க", "मछली पकड़ने", "చేపల వేట"]):
+    if any(k in text for k in ["safe", "sail", "fishing", "go out", "leave port", "clearance", "மீன்பிடிக்க", "மீன்பிடி", "मछली पकड़ने", "मछली पकड़", "मछली", "చేపల వేట", "చేపలు"]):
         return "sail_clearance", 0.95
     if any(k in text for k in ["pfz", "fish zone", "catch", "tuna", "hotspot", "density", "மீன் மண்டலம்", "मछली क्षेत्र"]):
         return "pfz_lookup", 0.95

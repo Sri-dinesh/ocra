@@ -1,7 +1,10 @@
 import logging
 import datetime
 from typing import Any
-from erddapy import ERDDAP
+try:
+    from erddapy import ERDDAP
+except ImportError:
+    ERDDAP = None
 from app.connectors.base import DataConnector
 from app.core.config import settings
 

@@ -1,6 +1,11 @@
 from sqlalchemy import Column, String, Float, DateTime, JSON
 from sqlalchemy.dialects.postgresql import UUID
-from geoalchemy2 import Geometry
+try:
+    from geoalchemy2 import Geometry
+except ImportError:
+    class Geometry(String):
+        def __init__(self, *args, **kwargs):
+            super().__init__()
 import datetime
 from app.db.session import Base, generate_uuid
 

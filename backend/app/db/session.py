@@ -5,12 +5,12 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
 
-# If DATABASE_URL is not set, fallback to a dummy SQLite for test/import purposes
-# though it will fail for PostGIS features.
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL or "sqlite:///./dummy.db"
+connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
+    connect_args=connect_args,
     pool_pre_ping=True,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

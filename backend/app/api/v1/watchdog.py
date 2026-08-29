@@ -15,7 +15,7 @@ class SubscribeResponse(BaseModel):
     vessel_id: str
     message: str
 
-@router.post("/subscribe", response_model=SubscribeResponse)
+@router.post("/watchdog/subscribe", response_model=SubscribeResponse)
 def subscribe_vessel(req: SubscribeRequest, db: Session = Depends(get_db)):
     vessel = Vessel(
         label=req.label,
