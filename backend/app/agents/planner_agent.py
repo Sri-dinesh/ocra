@@ -1,10 +1,10 @@
 """Production-Grade Planner Agent for ORCA.
+Specification: docs/Backend_Workflow.md §5.1
 Features:
-- Comprehensive Indian Coastal Maritime Gazetteer (60+ ports & fishing harbors).
-- Multilingual location resolution (English, Tamil, Hindi, Telugu transliterations).
-- Temporal expression normalization (UTC / IST target forecast lead hours).
-- Strict tool-calling / structured JSON deconstruction via Gemini.
-- Contextual clarification fallback for under-specified queries.
+- Comprehensive Indian Coastal Maritime Gazetteer (60+ ports & landing centers).
+- Multilingual transliterations (Tamil, Hindi, Telugu, English).
+- Strict tool-calling / structured extraction with Gemini.
+- Strict clarification short-circuit when location/time is ambiguous.
 Owner: SRIDINESH (Lead)
 """
 
@@ -64,39 +64,72 @@ INDIAN_COASTAL_GAZETTEER: Dict[str, Dict[str, Any]] = {
 
 INTENT_AGENT_MAPPING = {
     "sail_clearance": ["ocean", "weather", "gis"],
-    "pfz_lookup": ["ocean", "gis"],
-    "anomaly_detection": ["ocean", "weather"],
-    "route_request": ["ocean", "gis"],
+    "pfz_lookup": ["ocean", "weather", "gis"],
+    "anomaly_detection": ["ocean"],
+    "route_request": ["gis"],
     "general_query": ["ocean", "weather", "gis"],
     "clarification_needed": [],
 }
 
 
+class LocationOutput(BaseModel):
+    lat: float
+    lon: float
+    resolved_name: str
+
+
+class TimeWindowOutput(BaseModel):
+    start_iso: str
+    end_iso: str
+
+
 class PlanExtractionSchema(BaseModel):
     intent: str = Field(
         ...,
-        description="Classified operational intent: sail_clearance, pfz_lookup, anomaly_detection, route_request, general_query, clarification_needed",
+        description="Exactly one of: sail_clearance, pfz_lookup, anomaly_detection, route_request, general_query, clarification_needed",
     )
-    intent_confidence: float = Field(0.9, description="Confidence score between 0.0 and 1.0")
-    location_name: Optional[str] = Field(None, description="Extracted coastal town or harbor name")
-    lat: Optional[float] = Field(None, description="Resolved latitude")
-    lon: Optional[float] = Field(None, description="Resolved longitude")
-    time_expression: Optional[str] = Field(None, description="Raw temporal phrase e.g. 'tomorrow 06:00'")
-    clarification_prompt: Optional[str] = Field(None, description="Polite question asking for missing location")
+    location: Optional[LocationOutput] = Field(None, description="Resolved location coordinates and name")
+    time_window: Optional[TimeWindowOutput] = Field(None, description="Resolved time window in ISO format")
+    required_agents: List[str] = Field(default_factory=list, description="Subset of ['ocean', 'weather', 'gis']")
+    clarification_prompt: Optional[str] = Field(None, description="Polite question when ambiguous")
 
 
-PLANNER_SYSTEM_PROMPT = """You are the ORCA Marine Intelligence Planner Agent.
-Deconstruct marine questions from coastal fishermen, research scientists, or coast guard officers.
+PLANNER_SYSTEM_PROMPT = """You are the Planner component of ORCA, a marine decision-support system. Your only
+job is to convert a user's natural-language marine question into a structured plan.
+You do not answer the question. You do not know any current ocean, weather, or
+hazard data — you have no access to it and must never invent it.
 
-Operational Intents:
-- 'sail_clearance': "Can I go fishing?", "Is it safe to sail tomorrow morning?", "Weather safe for trawling?"
-- 'pfz_lookup': "Where are potential fishing zones?", "Find tuna hotspots", "Show fish density"
-- 'anomaly_detection': "Is sea surface temperature abnormal?", "Check chlorophyll bloom trends"
-- 'route_request': "Calculate safe navigation route to 17N 83E avoiding IMBL"
-- 'general_query': "What is the wave height near Kakinada?", "Current wind speed off Chennai"
-- 'clarification_needed': When NO coastal location or region can be determined.
+Given the user's query, a role, a language, and an optional location hint, extract:
 
-Return strictly structured JSON adhering to the schema.
+1. intent — exactly one of:
+   - "sail_clearance" (can I go out / is it safe to fish / go to sea)
+   - "pfz_lookup" (where is the best/nearest fishing zone)
+   - "anomaly_detection" (why did catch/productivity change / trend questions)
+   - "route_request" (give me a route / path to a location)
+   - "general_query" (conditions lookup, definitions, anything not above)
+   - "clarification_needed" (the query is too ambiguous to proceed — see rule below)
+
+2. location — {lat, lon, resolved_name}. Prefer location_hint if provided. If the
+   query names a place with no location_hint, resolve it only if you are confident
+   of real-world coordinates for a well-known Indian coastal location; otherwise
+   set intent to "clarification_needed".
+
+3. time_window — {start_iso, end_iso} in IST. Interpret relative expressions
+   ("tomorrow morning", "next 6 hours", "today") relative to the provided
+   current_datetime. "Morning" = 06:00–12:00 IST unless otherwise specified.
+
+4. required_agents — subset of ["ocean", "weather", "gis"], based on intent:
+   - sail_clearance → ["ocean", "weather", "gis"]
+   - pfz_lookup → ["ocean", "weather", "gis"]
+   - anomaly_detection → ["ocean"]
+   - route_request → ["gis"]
+   - general_query → whichever of the three the query concerns
+
+HARD RULE: if you cannot confidently resolve BOTH a location and a time window
+(where the intent requires them), you MUST set intent to "clarification_needed"
+and required_agents to []. Do not guess a plausible-sounding location or time.
+Guessing here causes the system to fetch data for the wrong place, which is a
+safety failure, not a UX inconvenience.
 """
 
 
@@ -105,25 +138,23 @@ def match_gazetteer(query_text: str) -> Optional[Tuple[str, Dict[str, Any]]]:
     clean_text = query_text.lower()
     for key, data in INDIAN_COASTAL_GAZETTEER.items():
         for alias in data["aliases"]:
-            # Check for word boundary or direct inclusion for non-latin scripts
             if alias in clean_text:
                 return key, data
     return None
 
 
-def parse_time_window(query_text: str) -> TimeWindowContext:
-    """Normalize natural language time expressions into structured ISO timestamps."""
+def parse_time_window(query_text: str, current_dt: Optional[datetime] = None) -> TimeWindowContext:
+    """Deterministic parser for Indian marine temporal phrases."""
+    now = current_dt or datetime.now(timezone.utc)
     clean_text = query_text.lower()
-    now = datetime.now(timezone.utc)
-    
-    lead_hours = 6
-    if "tomorrow morning" in clean_text or "tomorrow 6" in clean_text or "காலை" in clean_text or "सुबह" in clean_text:
+
+    if "tomorrow morning" in clean_text or "tomorrow 6" in clean_text or "காலை" in clean_text or "सुबह" in clean_text or "ఉదయం" in clean_text:
         target_start = now + timedelta(days=1)
         lead_hours = 18
     elif "tomorrow" in clean_text or "நாளை" in clean_text or "कल" in clean_text or "రేపు" in clean_text:
         target_start = now + timedelta(days=1)
         lead_hours = 24
-    elif "tonight" in clean_text or "evening" in clean_text or "இரவு" in clean_text or "आज रात" in clean_text:
+    elif "tonight" in clean_text or "evening" in clean_text or "இரவு" in clean_text or "आज रात" in clean_text or "రాత్రి" in clean_text:
         target_start = now + timedelta(hours=8)
         lead_hours = 8
     elif "next week" in clean_text or "3 days" in clean_text:
@@ -150,11 +181,11 @@ def rule_based_intent_classifier(query_text: str) -> Tuple[str, float]:
     
     if any(k in text for k in ["safe", "sail", "fishing", "go out", "leave port", "clearance", "மீன்பிடிக்க", "மீன்பிடி", "मछली पकड़ने", "मछली पकड़", "मछली", "చేపల వేట", "చేపలు"]):
         return "sail_clearance", 0.95
-    if any(k in text for k in ["pfz", "fish zone", "catch", "tuna", "hotspot", "density", "மீன் மண்டலம்", "मछली क्षेत्र"]):
+    if any(k in text for k in ["pfz", "fish zone", "catch", "tuna", "hotspot", "density", "மீன் மண்டலம்", "मछली क्षेत्र", "చేపల మండలం"]):
         return "pfz_lookup", 0.95
-    if any(k in text for k in ["route", "navigate", "path", "waypoint", "imbl avoidance", "வழித்தடம்", "मार्ग"]):
+    if any(k in text for k in ["route", "navigate", "path", "waypoint", "imbl avoidance", "வழித்தடம்", "मार्ग", "మార్గం"]):
         return "route_request", 0.90
-    if any(k in text for k in ["temperature", "sst", "anomaly", "unusual", "chlorophyll", "வெப்பநிலை", "तापमान"]):
+    if any(k in text for k in ["temperature", "sst", "anomaly", "unusual", "chlorophyll", "வெப்பநிலை", "तापमान", "ఉష్ణోగ్రత"]):
         return "anomaly_detection", 0.90
     
     return "general_query", 0.80
@@ -169,21 +200,20 @@ async def plan(
     """Execute production entity extraction, gazetteer matching, and sub-agent planning."""
     logger.info(f"[Planner Agent] Processing query: '{raw_query}' (role={role}, lang={language})")
 
-    # 1. Location Matching: Check Gazetteer or Location Hint
-    matched_loc_key, matched_loc_data = None, None
+    # 1. Resolve Location
     if location_hint and "lat" in location_hint and "lon" in location_hint:
-        loc_context: LocationContext = {
+        loc_context: Optional[LocationContext] = {
             "lat": float(location_hint["lat"]),
             "lon": float(location_hint["lon"]),
-            "name": location_hint.get("name", "Reported Location"),
-            "state_or_region": "Coastal India",
+            "name": location_hint.get("name") or "Operational GPS Location",
+            "state_or_region": "Coastal Waters",
             "confidence": 1.0,
         }
     else:
         gaz_match = match_gazetteer(raw_query)
         if gaz_match:
             matched_loc_key, matched_loc_data = gaz_match
-            loc_context: LocationContext = {
+            loc_context = {
                 "lat": matched_loc_data["lat"],
                 "lon": matched_loc_data["lon"],
                 "name": matched_loc_data["name"],
@@ -193,7 +223,7 @@ async def plan(
         else:
             loc_context = None
 
-    # 2. Check for missing location on short ambiguous queries
+    # 2. Ambiguity Short-Circuit Check
     words = raw_query.strip().split()
     if loc_context is None and len(words) <= 4:
         clarification_msg = "Could you specify which coastal harbor or port you are departing from?"
@@ -222,7 +252,7 @@ async def plan(
             "map_layers": [],
         }
 
-    # Fallback to default Kakinada hub if location is implicit
+    # Default to Kakinada if location is implicit
     if loc_context is None:
         loc_context = {
             "lat": 16.9891,
@@ -232,18 +262,19 @@ async def plan(
             "confidence": 0.7,
         }
 
-    # 3. Intent Classification (LLM or Rule Engine)
+    # 3. Intent Classification
     intent, intent_conf = rule_based_intent_classifier(raw_query)
     
     if llm_client.is_configured():
+        now_iso = datetime.now(timezone.utc).isoformat()
+        user_msg = f"current_datetime: {now_iso}\nrole: {role}\nlanguage: {language}\nlocation_hint: {loc_context}\nquery: \"{raw_query}\""
         llm_res = await llm_client.generate_structured(
-            prompt=f"Query: {raw_query}\nLocation: {loc_context['name']}\nRole: {role}",
+            prompt=user_msg,
             schema=PlanExtractionSchema,
             system_instruction=PLANNER_SYSTEM_PROMPT,
         )
         if llm_res and "intent" in llm_res and llm_res["intent"] in INTENT_AGENT_MAPPING:
             intent = llm_res["intent"]
-            intent_conf = llm_res.get("intent_confidence", 0.9)
 
     time_context = parse_time_window(raw_query)
     required_agents = INTENT_AGENT_MAPPING.get(intent, ["ocean", "weather", "gis"])
