@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "IMBL_Segment",
+        "zone_type": "imbl",
+        "source": "Mock_IMBL"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [82.0, 16.5],
+            [83.0, 16.5],
+            [83.0, 17.5],
+            [82.0, 17.5],
+            [82.0, 16.5]
+          ]
+        ]
+      }
+    }
+  ]
+}

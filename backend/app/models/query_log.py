@@ -1,17 +1,17 @@
-"""SQLAlchemy Model for query_logs.
-Table created by CHARAN; Written to by SRIDINESH.
+from sqlalchemy import Column, String, DateTime, JSON
+from sqlalchemy.dialects.postgresql import UUID
+import datetime
+from app.db.session import Base
 
-Schema:
-- id: uuid, PK (matches query_id)
-- raw_query: text
-- detected_language: text
-- intent: text
-- plan_json: jsonb
-- evidence_json: jsonb
-- role: text (fisherman/researcher/coast_guard/policymaker)
-- created_at: timestamptz
-"""
+class QueryLog(Base):
+    __tablename__ = "query_logs"
 
-class QueryLog:
-    """Placeholder model - table created by Charan; written to by Sridinesh's /query."""
-    pass
+    # Maps to query_id from the response
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    raw_query = Column(String, nullable=False)
+    detected_language = Column(String, nullable=True)
+    intent = Column(String, nullable=True)
+    plan_json = Column(JSON, nullable=True)
+    evidence_json = Column(JSON, nullable=True)
+    role = Column(String, nullable=True) # 'fisherman'/'researcher'/'coast_guard'/'policymaker'
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)

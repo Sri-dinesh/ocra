@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Demo_MPA",
+        "zone_type": "mpa",
+        "source": "Mock_MPA"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [82.2, 16.8],
+            [82.5, 16.8],
+            [82.5, 17.1],
+            [82.2, 17.1],
+            [82.2, 16.8]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,15 +1,14 @@
-"""SQLAlchemy Model for zones.
-Owner: CHARAN (Backend-B)
+from sqlalchemy import Column, String, Boolean
+from sqlalchemy.dialects.postgresql import UUID
+from geoalchemy2 import Geometry
+from app.db.session import Base, generate_uuid
 
-Schema:
-- id: uuid, PK
-- name: text
-- zone_type: text (imbl/mpa/restricted/pfz)
-- geom: geometry(Polygon, 4326)
-- source: text
-- active: boolean
-"""
+class Zone(Base):
+    __tablename__ = "zones"
 
-class Zone:
-    """Placeholder model - implemented with SQLAlchemy + GeoAlchemy2 by Charan."""
-    pass
+    id = Column(UUID(as_uuid=True), primary_key=True, default=generate_uuid, index=True)
+    name = Column(String, nullable=False)
+    zone_type = Column(String, nullable=False) # 'imbl' / 'mpa' / 'restricted' / 'pfz'
+    geom = Column(Geometry('POLYGON', srid=4326, spatial_index=True), nullable=False)
+    source = Column(String, nullable=True)
+    active = Column(Boolean, default=True, nullable=False)
