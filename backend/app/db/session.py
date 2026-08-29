@@ -25,4 +25,4 @@ def get_db():
         db.close()
 
 def generate_uuid():
-    return str(uuid.uuid4())
+    return uuid.uuid4()
