@@ -1,24 +1,17 @@
-"""Pydantic schemas for /route endpoint.
-Owner: CHARAN (Backend-B)
-"""
+from pydantic import BaseModel
+from typing import List, Dict
 
-from typing import List, Optional
-from pydantic import BaseModel, Field
-
-
-class LatLonPoint(BaseModel):
+class Point(BaseModel):
     lat: float
     lon: float
 
-
 class RouteRequest(BaseModel):
-    start: LatLonPoint
-    goal: LatLonPoint
-    boat_class: Optional[str] = Field(default="small", description="Vessel class")
-
+    start: Point
+    goal: Point
+    boat_class: str
 
 class RouteResponse(BaseModel):
-    route: List[LatLonPoint]
+    route: List[Point]
     distance_nm: float
-    avoided_zones: List[str] = Field(default_factory=list)
-    pathfinder: str = "astar"
+    avoided_zones: List[str]
+    pathfinder: str
