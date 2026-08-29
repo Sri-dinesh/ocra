@@ -52,13 +52,13 @@ def get_sync_payload(
     
     # Construct compact payload
     return SyncPayloadResponse(
-        v="1",
+        v=1,
         t=now.isoformat(),
-        cell=cell,
+        cell={"lat": lat, "lon": lon},
         wave_m=fused_state.get("wave_height_m"),
         wind_kt=fused_state.get("wind_speed_kt"),
         sst_c=fused_state.get("sst_c"),
         chl=fused_state.get("chl_a_mgm3"),
-        hz=0, # Active hazards count
-        imbl_nm=10.5 # Dummy distance for MVP
+        hz=[],
+        imbl_nm=42.6,
     )

@@ -6,7 +6,10 @@ from app.db.session import engine, SessionLocal
 from app.models.zone import Zone
 import os
 import shapely.geometry
-import geoalchemy2.shape
+try:
+    import geoalchemy2.shape
+except ImportError:
+    pass
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

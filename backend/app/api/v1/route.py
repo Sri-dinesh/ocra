@@ -12,7 +12,7 @@ def get_route(req: RouteRequest):
     start = (req.start.lat, req.start.lon)
     goal = (req.goal.lat, req.goal.lon)
     
-    cost_grid = get_demo_cost_grid()
+    cost_grid = get_demo_cost_grid(start, goal)
     
     path = astar_route(start, goal, cost_grid)
     
