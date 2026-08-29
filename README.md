@@ -86,12 +86,30 @@ orca/
 | **Charan** | `charan` | Data connectors, Supabase PostGIS DB & models, A* pathfinder, geofencing, Watchdog daemon, `/route`, `/oceanstate` | `backend/app/db/`, `backend/app/models/`, `backend/app/connectors/`, `backend/app/geospatial/`, `backend/app/watchdog/`, `backend/app/api/v1/route.py`, `oceanstate.py`, `watchdog.py` |
 | **Akash** | `akash` | Expo React Native app, Leaflet WebView map, Push-to-Talk voice, Zustand stores, SQLite offline mode, Watchdog alerts UI | `mobile/` (entire mobile tree) |
 
-### Branching Rules
-1. `main` is the locked baseline pushed by the Lead.
-2. Every member branches once from `main`: `git checkout -b <name>`.
-3. Work independently within your owned directories.
-4. Keep the contracts defined in [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) frozen.
-5. Merge strategy: Charan → `main`, then Akash → `main`, tagged as `v1.0-demo`.
+### Branch Setup CLI Commands (One Branch Per Member)
+```bash
+# 1. Fetch main baseline
+git checkout main
+git pull origin main
+
+# 2. Create and switch to your dedicated branch:
+git checkout -b sridinesh   # For Lead (Sridinesh)
+git checkout -b charan      # For Backend-B (Charan)
+git checkout -b akash       # For Frontend (Akash)
+
+# 3. Publish to GitHub:
+git push -u origin <branch_name>
+```
+
+### Development & Merge Sequence
+1. **Isolated Development**: All code is committed to each developer's dedicated branch (`sridinesh`, `charan`, `akash`). No direct pushes to `main`.
+2. **Contract-Frozen**: [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) defines the shared request/response models.
+3. **Merge Sequence (by Lead)**:
+   - `charan` → `main` (Connectors, PostGIS, A* Router)
+   - Swap temporary agent stubs (`_stubs.py`) with Charan's real modules
+   - `akash` → `main` (Mobile App, Leaflet WebView, Voice UI)
+   - `sridinesh` → `main` (LangGraph Agents, Guardrails, Risk Engine)
+   - Smoke test end-to-end and tag: `git tag v1.0-demo && git push origin --tags`
 
 ---
 

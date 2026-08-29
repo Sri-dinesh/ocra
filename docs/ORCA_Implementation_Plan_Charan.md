@@ -9,7 +9,20 @@ This is your complete, self-contained task list. Everything you need — tech st
 
 ---
 
-## 0. Your Scope, Precisely
+## 0. Strategic Objectives & Core Scope
+
+### 0.1 Your Core Objectives (Backend-B / Charan):
+1. **Multi-Source Marine Ingestion**: Build clean, isolated connectors for INCOIS (PFZ & OSF), Copernicus CMEMS, NOAA ERDDAP, IMD Weather/Cyclone bulletins, and OBIS.
+2. **PostGIS Spatial Foundation**: Set up Supabase PostgreSQL with PostGIS extension, creating indexed tables (`ocean_states`, `zones`, `hazards`, `vessels`, `query_logs`) and seeding Indian coastal IMBL / MPA boundary GeoJSONs.
+3. **Geospatial Fusion & Common Marine State**: Fuse multi-sensor observations into unified Marine State records with provenance source maps and freshness tags.
+4. **Collision-Free A\* Marine Pathfinder**: Implement custom A* grid routing avoiding restricted polygons (IMBL, MPAs) with wave-cost minimization.
+5. **Proactive Watchdog Daemon**: Build an asynchronous background polling loop evaluating vessel drift, proximity to boundary lines, and active cyclone bulletins.
+6. **Edge Sync Payload Engine**: Expose a compact (<1KB) `/api/v1/sync/payload` endpoint for mobile offline synchronization.
+7. **Demo-Day Resilience**: Implement an airtight `USE_MOCK_CONNECTORS=true` toggle ensuring zero live network failure during hackathon judging.
+
+---
+
+## 0.2 Your Scope, Precisely
 
 **You own these folders — nobody else writes to them:**
 ```
@@ -28,9 +41,34 @@ backend/app/mock/mock_oceanstate_response.json
 backend/app/mock/mock_watchdog_alert.json
 ```
 
-**You do NOT touch:** `backend/app/agents/`, `backend/app/reasoning/`, `backend/app/api/v1/query.py`, `backend/app/api/v1/evidence.py`, anything under `mobile/`. If your work genuinely needs something from those folders, it means the API contract is incomplete — flag it to Sridinesh so the lead doc gets updated, rather than writing into his folders.
+**You do NOT touch:** `backend/app/agents/`, `backend/app/reasoning/`, `backend/app/api/v1/query.py`, `backend/app/api/v1/evidence.py`, `backend/app/core/`, `backend/app/main.py`, anything under `mobile/`. If your work genuinely needs something from those folders, it means the API contract is incomplete — flag it to Sridinesh so the lead doc gets updated, rather than writing into his folders.
 
-**Branch:** `charan`. Branch from `main` once Sridinesh has pushed the skeleton (§2 of the lead doc). Commit directly to `charan` throughout. Never touch `main` or push to `sridinesh`/`akash`.
+---
+
+## 0.3 Git Branching & Workflow for Charan
+
+- **Dedicated Branch Name**: `charan`
+- **Base Branch**: `main`
+
+### Branch Setup CLI Commands:
+Run these commands in your terminal to start your track:
+```bash
+# 1. Ensure you are on the latest main baseline
+git checkout main
+git pull origin main
+
+# 2. Create and switch to your dedicated branch
+git checkout -b charan
+
+# 3. Publish your branch to remote
+git push -u origin charan
+```
+
+### Development & Commit Rules:
+1. **Work Only on `charan`**: Never commit to `main`, `sridinesh`, or `akash`.
+2. **Commit Daily**: Make small, clear conventional commits (e.g. `feat(connectors): implement incois osf client`).
+3. **Push Daily**: Keep remote branch backed up (`git push origin charan`).
+4. **Merge Readiness**: Before merge day, complete Phase 7 (unit tests + mock connector validation) and notify Sridinesh for merging `charan` → `main`.
 
 ---
 

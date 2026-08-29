@@ -9,13 +9,50 @@ This is your complete, self-contained task list. Everything you need — tech st
 
 ---
 
-## 0. Your Scope, Precisely
+## 0. Strategic Objectives & Core Scope
+
+### 0.1 Your Core Objectives (Frontend / Akash):
+1. **Conversational Voice-First UX**: Deliver an intuitive mobile chat interface with Push-to-Talk voice recording and multilingual TTS playback in Indian regional languages (Tamil, Hindi, Telugu, English).
+2. **"Show the Math" Audit Trace (Judge-Facing Differentiator)**: Implement seamless tap-to-reveal evidence cards linking every recommendation back to authoritative sensor sources.
+3. **Interactive Marine Mapping (Zero-Cost)**: Embed Leaflet inside WebView with postMessage JS bridge to visualize PFZ hotspots, SST/chlorophyll heatmaps, IMBL geofences, and A* obstacle-avoiding navigation paths.
+4. **Resilient Offline Edge Demo**: Integrate Expo SQLite to cache `/api/v1/sync/payload` and detect connectivity transitions, guaranteeing reliable offline responses during airplane-mode demonstrations.
+5. **Proactive Watchdog Alert UI**: Build push notifications and an automatic voice alert overlay for critical proximity warnings ("ORCA talks first").
+6. **Multi-Persona Tailoring**: Provide a client-side role picker (Fisherman, Researcher, Coast Guard, Policymaker) without server auth dependencies.
+
+---
+
+## 0.2 Your Scope, Precisely
 
 **You own the entire `mobile/` folder** — nobody else touches it. You don't need permission to restructure anything inside `mobile/`, as long as the final result still runs `npx expo start` cleanly and implements the screens/features below.
 
 **You do NOT touch:** anything under `backend/`. If you need a new field in an API response, don't invent it silently — it means the contract (lead doc §4) is incomplete; flag it to Sridinesh so the doc gets updated and both mock files (`backend/app/mock/*.json` and yours) stay in sync.
 
-**Branch:** `akash`. Branch from `main` once Sridinesh has pushed the skeleton. Commit directly to `akash` throughout.
+---
+
+## 0.3 Git Branching & Workflow for Akash
+
+- **Dedicated Branch Name**: `akash`
+- **Base Branch**: `main`
+
+### Branch Setup CLI Commands:
+Run these commands in your terminal to start your track:
+```bash
+# 1. Ensure you are on the latest main baseline
+git checkout main
+git pull origin main
+
+# 2. Create and switch to your dedicated branch
+git checkout -b akash
+
+# 3. Publish your branch to remote
+git push -u origin akash
+```
+
+### Development & Commit Rules:
+1. **Work Only on `akash`**: Never commit to `main`, `sridinesh`, or `charan`.
+2. **Commit Daily**: Make small, clear conventional commits (e.g. `feat(chat): build push to talk button`).
+3. **Push Daily**: Keep remote branch backed up (`git push origin akash`).
+4. **Mock-First Verification**: Complete all screens against `USE_MOCK=true` first, then coordinate with Sridinesh on merge day for live backend testing (`USE_MOCK=false`).
 
 ---
 

@@ -21,6 +21,19 @@ If anything in a member's doc conflicts with this doc, **this doc wins**. Any ch
 
 ---
 
+## 0.1 Strategic Objectives & Key Deliverables
+
+### Lead Track Core Objectives (Sridinesh):
+1. **Agent Planning & Disambiguation (Zero Hallucination)**: Construct a Gemini-powered Planner Agent using strict tool calling to extract marine entities (`location`, `time_window`, `intent`) and request clarifications whenever essential parameters are missing.
+2. **Deterministic Safety Guardrails**: Build an uncompromising verification gate that matches every numerical claim against raw sensor feeds, enforcing hard overrides for official IMD cyclones and severe alerts.
+3. **Transparent Risk Engine**: Implement the TRD weighted composite formula (0–100) mapping to 4 risk bands (`low`, `moderate`, `high`, `extreme`) with explicit provenance footnotes.
+4. **Grounded Multilingual Synthesis**: Synthesize natural language and Indian regional language responses (Tamil, Hindi, Telugu, English) strictly grounded on verified evidence.
+5. **System Integration & Verification**: Validate the end-to-end pipeline against an evaluation set of 20+ real-world marine queries.
+
+---
+
+---
+
 ## 1. Tech Stack (Locked)
 
 **Hard constraint: every tool must be free — either fully open-source/self-hostable, or a genuinely usable free tier (Supabase, Render, Vercel, Gemini API free tier, Bhashini, Expo). No paid upgrade required to build or demo the full system.**
@@ -344,25 +357,130 @@ Akash's `mobile/src/api/client.ts` reads an env flag `USE_MOCK=true/false`. With
 
 ---
 
-## 5. Git Workflow
+---
 
-- **One branch per member. No feature branches.** `main`, `sridinesh`, `charan`, `akash`.
-- Sridinesh pushes the full skeleton (§2) to `main` first. Everyone branches from `main` after that push, once.
-- Each member commits directly to their own branch throughout the build — commit often, don't wait for "done."
-- Nobody pushes to `main` except Sridinesh, and only at merge time.
-- Nobody pushes to another member's branch.
-- At the end, Sridinesh merges `charan` → `main`, then `akash` → `main`, resolving conflicts (there should be almost none, since folder ownership doesn't overlap — see §2 ownership tags). Config files (`.env.example`, `README.md`) are the only likely overlap points; Sridinesh reconciles those manually.
-- Tag the final merged commit `v1.0-demo` once the merged app runs end-to-end.
+## 5. Git Workflow, Branching & Step-by-Step Merge Protocol
 
-**Do's**
-- Pull `main` once at the start, then work independently until merge day.
-- Keep commit messages descriptive (`feat(agents): add planner entity extraction`), it helps Sridinesh review the merge fast.
-- If you touch a file outside your owned folders (e.g. a shared type file), flag it to Sridinesh before merge — don't let it be a surprise.
+### 5.1 Branch Matrix & Ownership
 
-**Don'ts**
-- Don't rebase onto another member's branch.
-- Don't force-push over `main`.
-- Don't wait until the last day to push — push your branch daily so the lead can spot integration issues early even before formal merge.
+| Member | Role | Branch Name | Base Branch | Write Access Scope |
+|---|---|---|---|---|
+| **Sridinesh (Lead)** | Agent Orchestration, Reasoning, Risk Engine, `/query`, `/evidence` | `sridinesh` | `main` | `backend/app/agents/`, `backend/app/reasoning/`, `backend/app/api/v1/query.py`, `evidence.py`, `backend/app/core/`, `backend/app/main.py` |
+| **Charan** | Data Connectors, Supabase PostGIS, A* Pathfinder, Geofence, Watchdog Daemon, `/route`, `/oceanstate` | `charan` | `main` | `backend/app/db/`, `backend/app/models/`, `backend/app/connectors/`, `backend/app/geospatial/`, `backend/app/watchdog/`, `backend/app/api/v1/route.py`, `oceanstate.py`, `watchdog.py` |
+| **Akash** | Mobile App (Expo React Native, Leaflet WebView, Zustand, Voice, Offline Cache) | `akash` | `main` | `mobile/` (entire mobile tree) |
+
+---
+
+### 5.2 Branch Creation CLI Commands (For All Members)
+
+Every member runs these exact commands once from their local clone:
+
+```bash
+# 1. Fetch latest baseline from main
+git checkout main
+git pull origin main
+
+# 2. Create and switch to your designated branch
+# For Sridinesh (Lead):
+git checkout -b sridinesh
+
+# For Charan (Backend-B):
+git checkout -b charan
+
+# For Akash (Frontend):
+git checkout -b akash
+
+# 3. Publish branch to remote GitHub repository
+git push -u origin <your_branch_name>
+```
+
+---
+
+### 5.3 Daily Development Rules
+1. **Isolated Commits**: Always commit to your own branch only. Never push directly to `main` during active development.
+2. **Conventional Commit Messages**: Write descriptive commit messages (e.g. `feat(agents): implement planner tool calling`, `feat(connectors): add INCOIS OSF fetcher`).
+3. **Daily Push**: Run `git push origin <your_branch_name>` at the end of each session so the Lead can track progress.
+4. **No Cross-Branch Interference**: Never switch to or edit another member's branch.
+
+---
+
+### 5.4 Lead Step-by-Step Merge Protocol (How to Merge at Hackathon Milestone)
+
+As Lead, Sridinesh coordinates the final merge sequence into `main` using the following exact steps:
+
+#### Step 1: Pre-Merge Verification
+Before merging anything into `main`, verify that all three branches have passed their respective local tests:
+- On `charan`: All connector tests pass (`USE_MOCK_CONNECTORS=true` works, PostGIS models match schema).
+- On `akash`: `npx expo start` and `npm run typecheck` pass with zero errors in `mobile/`.
+- On `sridinesh`: `pytest backend/tests/` passes with all stubs.
+
+#### Step 2: Merge Charan's Backend Track (`charan` → `main`)
+```bash
+# 1. Switch to main and pull latest
+git checkout main
+git pull origin main
+
+# 2. Fetch and merge charan's branch
+git fetch origin charan
+git merge charan -m "merge(backend-b): integrate data connectors, PostGIS schema, A* pathfinder, and watchdog daemon"
+
+# 3. Verify backend endpoints (/route, /oceanstate, /watchdog)
+# Start backend server:
+cd backend
+uvicorn app.main:app --reload --port 8000
+# Test health: curl http://localhost:8000/health
+```
+
+#### Step 3: Swap Agent Stubs with Charan's Real Implementations
+Once Charan's code is in `main`, replace the temporary stubs in `backend/app/agents/graph.py` at the marked `# MERGE:` points:
+```python
+# Change from stubs:
+# from app.agents._stubs import stub_fetch_ocean_data, stub_fetch_weather_hazard, stub_check_geofence
+# To real modules:
+from app.geospatial.fusion import fuse as fetch_ocean_data
+from app.connectors.imd_bulletin import ImdBulletinConnector
+from app.geospatial.geofence import check_point as check_geofence
+```
+Delete the temporary file `backend/app/agents/_stubs.py`. Commit this change:
+```bash
+git add backend/app/agents/graph.py
+git commit -m "refactor(agents): swap stub functions with Charan's live geospatial and connector modules"
+```
+
+#### Step 4: Merge Akash's Frontend Track (`akash` → `main`)
+```bash
+git checkout main
+git fetch origin akash
+git merge akash -m "merge(frontend): integrate Expo mobile app, Leaflet map, voice UI, and offline sync"
+
+# Verify mobile build:
+cd ../mobile
+npm run typecheck
+```
+
+#### Step 5: Merge Sridinesh's Lead Track (`sridinesh` → `main`)
+```bash
+git checkout main
+git fetch origin sridinesh
+git merge sridinesh -m "merge(lead): integrate LangGraph agent graph, planner, synthesis, deterministic guardrails, and risk engine"
+```
+
+#### Step 6: Resolve Conflicts (if any)
+Because directories were partitioned strictly by member, merge conflicts are rare. If conflicts occur in shared files (`README.md` or `.env.example`):
+1. Review the diff in VSCode / IDE.
+2. Combine environment variables from both tracks into `.env.example`.
+3. Complete the merge: `git add . && git commit -m "chore(merge): resolve shared config conflicts"`.
+
+#### Step 7: End-to-End Smoke Test & Release Tagging
+1. Set `EXPO_PUBLIC_USE_MOCK=false` in `mobile/.env`.
+2. Start backend: `uvicorn app.main:app --reload --port 8000`.
+3. Start Expo: `npx expo start`.
+4. Ask *"Can I go fishing tomorrow morning near Kakinada?"* in the mobile app and verify the live answer, map layers, and evidence trace.
+5. Tag the milestone release:
+```bash
+git tag -a v1.0-demo -m "ORCA Hackathon Demo Release v1.0"
+git push origin main --tags
+```
 
 ---
 
