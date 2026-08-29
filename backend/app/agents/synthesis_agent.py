@@ -36,7 +36,7 @@ REGIONAL_TEMPLATES = {
         "warning": "హెచ్చరిక: {location} వద్ద సముద్ర పరిస్థితులు అనుకూలంగా లేవు ({band} ప్రమాదం). వేటకు వెళ్లడం వాయిదా వేయండి.",
     },
     "en-IN": {
-        "clear": "Clear to sail east from {location}, 29 Aug 06:00 IST. Wave height {wave}m and wind speed {wind}kt are within safe limits. No active cyclone bulletin.",
+        "clear": "Clear to sail from {location}. Wave height {wave}m and wind speed {wind}kt are within safe limits. No active cyclone bulletin.",
         "warning": "Advisory: Adverse sea conditions near {location} ({band} risk). Recommend postponing vessel departure.",
     },
 }

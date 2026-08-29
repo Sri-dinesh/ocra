@@ -193,7 +193,7 @@ def evaluate_risk_and_recommendation(state: AgentState) -> AgentState:
         else:
             state["recommendation"] = f"Advisory: Unfavorable sea conditions from {loc_name} ({band.upper()} risk: {score}/100). Postpone departure."
     else:
-        state["recommendation"] = f"Clear to sail east from {loc_name}, 29 Aug 06:00 IST. Favorable sea state."
+        state["recommendation"] = f"Clear to sail from {loc_name}. Favorable sea state and safe operational limits."
 
     logger.info(f"[Risk Engine] Evaluated risk: score={score}, band={band}, sail_allowed={allowed}")
     return state

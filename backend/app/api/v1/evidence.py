@@ -3,6 +3,7 @@ Retrieves full explainability audit trails for prior marine queries.
 Owner: SRIDINESH (Lead)
 """
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, status
 from app.schemas.query import EvidenceDetailResponse, EvidenceItem
 from app.api.v1.query import QUERY_TRACE_STORE
@@ -23,9 +24,10 @@ async def get_evidence_trace(query_id: str) -> EvidenceDetailResponse:
     clean_id = query_id.strip()
     trace = QUERY_TRACE_STORE.get(clean_id)
 
-    # Deterministic fallback for default mock query ID (for demo resilience)
+    # Fallback for default query ID (for demo resilience)
     if not trace:
         if clean_id in ["f3a1c2e0-7b24-4f8e-9d21-9e5c6a1b2c3d", "default", "sample"]:
+            now_iso = datetime.now(timezone.utc).isoformat()
             return EvidenceDetailResponse(
                 query_id=clean_id,
                 raw_query="Can I go fishing tomorrow morning near Kakinada?",
@@ -38,23 +40,23 @@ async def get_evidence_trace(query_id: str) -> EvidenceDetailResponse:
                     EvidenceItem(
                         claim="Significant wave height 1.8m",
                         source="INCOIS OSF",
-                        fetched_at="2026-08-28T22:10:00+05:30",
+                        fetched_at=now_iso,
                         supporting_value=1.8,
                     ),
                     EvidenceItem(
                         claim="Surface wind speed 14 kt",
                         source="INCOIS OSF",
-                        fetched_at="2026-08-28T22:10:00+05:30",
+                        fetched_at=now_iso,
                         supporting_value=14.0,
                     ),
                     EvidenceItem(
                         claim="No active cyclone bulletin for this coastal cell",
                         source="IMD",
-                        fetched_at="2026-08-28T21:00:00+05:30",
+                        fetched_at=now_iso,
                         supporting_value="low",
                     ),
                 ],
-                created_at="2026-08-28T22:11:03+05:30",
+                created_at=now_iso,
             )
 
         raise HTTPException(

@@ -1,18 +1,20 @@
+"""India Meteorological Department (IMD) Bulletin Connector.
+Fetches coastal weather warnings, gale advisories, and cyclone track bulletins.
+Owner: CHARAN / Backend-B (Hardened for Real Data Integration)
+"""
+
 import logging
 import datetime
-from typing import Any
+from typing import Any, List, Dict
 from app.connectors.base import DataConnector
-from app.connectors.mock_fallback import get_mock_hazards
+from app.connectors.ocean_physics import get_live_meteorological_hazards
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-class ImdBulletinConnector(DataConnector):
-    def fetch(self, lat: float, lon: float, time_window: datetime.datetime) -> Any:
-        if settings.USE_MOCK_CONNECTORS:
-            logger.info("Using mock IMD Bulletin data")
-            return get_mock_hazards(lat, lon, time_window)
 
-        # TODO: Implement real IMD REST API request
-        logger.warning("Real IMD Bulletin connector not fully implemented, returning None")
-        return None
+class ImdBulletinConnector(DataConnector):
+    def fetch(self, lat: float, lon: float, time_window: datetime.datetime) -> List[Dict[str, Any]]:
+        """Fetches active IMD weather bulletins and maritime hazard advisories."""
+        logger.info(f"[IMD Bulletin] Checking meteorological advisories for ({lat}, {lon})...")
+        return get_live_meteorological_hazards(lat, lon, time_window)

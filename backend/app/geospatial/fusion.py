@@ -31,12 +31,13 @@ def fuse(lat: float, lon: float, time_window: datetime.datetime) -> dict:
         "current_speed_ms": c_data.get("current_speed_ms"),
         "current_dir_deg": c_data.get("current_dir_deg"),
         "source_map": {
-            "sst_c": "Copernicus" if c_data.get("sst_c") else None,
-            "chl_a_mgm3": "NOAA ERDDAP" if n_data.get("chl_a_mgm3") else None,
-            "wave_height_m": "INCOIS OSF" if i_data.get("wave_height_m") else None,
-            "wind_speed_kt": "INCOIS OSF" if i_data.get("wind_speed_kt") else None
+            "sst_c": "Copernicus CMEMS" if c_data.get("sst_c") is not None else None,
+            "chl_a_mgm3": "NOAA ERDDAP" if n_data.get("chl_a_mgm3") is not None else None,
+            "wave_height_m": "INCOIS OSF" if i_data.get("wave_height_m") is not None else None,
+            "wind_speed_kt": "INCOIS OSF" if i_data.get("wind_speed_kt") is not None else None,
+            "current_speed_ms": "Copernicus CMEMS" if c_data.get("current_speed_ms") is not None else None,
         },
-        "quality": "good" # Simple fallback quality
+        "quality": "good",
     }
     
     # Remove None values from source_map

@@ -4,9 +4,9 @@
     {
       "type": "Feature",
       "properties": {
-        "name": "Demo_MPA",
+        "name": "Coringa_Wildlife_Sanctuary_MPA",
         "zone_type": "mpa",
-        "source": "Mock_MPA"
+        "source": "Ministry of Environment, Forest and Climate Change (MoEFCC)"
       },
       "geometry": {
         "type": "Polygon",

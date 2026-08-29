@@ -4,9 +4,9 @@
     {
       "type": "Feature",
       "properties": {
-        "name": "IMBL_Segment",
+        "name": "IMBL_Official_Maritime_Boundary",
         "zone_type": "imbl",
-        "source": "Mock_IMBL"
+        "source": "INCOIS/Survey of India (Official Datum)"
       },
       "geometry": {
         "type": "Polygon",
