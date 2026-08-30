@@ -1,67 +1,147 @@
-import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
+import { PressableScale, PulseRing } from '../ui/anim';
+import { colors, spacing, radius, typography } from '../../theme/theme';
 
 interface Props {
   onRecordingComplete?: (audioUri: string) => void;
   isProcessing?: boolean;
+  disabled?: boolean;
 }
 
-export const PushToTalkButton: React.FC<Props> = ({ onRecordingComplete, isProcessing }) => {
+export const PushToTalkButton: React.FC<Props> = ({ onRecordingComplete, isProcessing, disabled }) => {
   const [isRecording, setIsRecording] = useState(false);
 
-  const handlePressIn = () => {
-    setIsRecording(true);
-    // TODO (AKASH): Implement audio recording start in Phase 5
+  const recordingRef = useRef<Audio.Recording | null>(null);
+
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    }).catch(() => undefined);
+    return () => {
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => undefined);
+      }
+    };
+  }, []);
+
+  const handlePressIn = async () => {
+    if (disabled || isProcessing) return;
+    try {
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch (_) {}
+        recordingRef.current = null;
+      }
+      const perm = await Audio.requestPermissionsAsync();
+      if (perm.status !== 'granted') {
+        console.warn('[ptt] audio permission not granted');
+        return;
+      }
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+      setIsRecording(true);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {
+      console.warn('[ptt] could not start recording', e);
+      recordingRef.current = null;
+      setIsRecording(false);
+    }
   };
 
-  const handlePressOut = () => {
-    setIsRecording(false);
-    // TODO (AKASH): Implement audio recording stop and send in Phase 5
+  const handlePressOut = async () => {
+    if (!isRecording || !recordingRef.current) return;
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      recordingRef.current = null;
+      setIsRecording(false);
+      if (uri) onRecordingComplete?.(uri);
+    } catch (e) {
+      console.warn('[ptt] could not finalize recording', e);
+      recordingRef.current = null;
+      setIsRecording(false);
+    }
   };
+
+  const idle = !isRecording && !isProcessing;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      disabled={isProcessing}
-      style={[
-        styles.button,
-        isRecording && styles.recordingButton,
-        isProcessing && styles.disabledButton,
-      ]}
-    >
-      <Text style={styles.buttonText}>
-        {isProcessing ? 'Thinking...' : isRecording ? 'Listening...' : 'Hold to Speak'}
+    <View style={styles.wrap}>
+      <PulseRing color={isRecording ? colors.alertDanger : colors.aqua} active={isRecording} />
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel="Push to talk"
+        accessibilityState={{ busy: isProcessing, selected: isRecording, disabled: disabled || isProcessing }}
+        disabled={disabled || isProcessing}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[
+          styles.button,
+          isRecording ? styles.recording : styles.idle,
+          (disabled || isProcessing) && styles.disabled,
+        ]}
+      >
+        <Text style={styles.micIcon}>{isRecording ? '🔴' : '🎙️'}</Text>
+      </PressableScale>
+      <Text style={[styles.label, isRecording && styles.labelRecording]}>
+        {isProcessing ? 'Sagaradristi is thinking…' : isRecording ? 'Listening…' : idle ? 'Hold to speak' : 'Wait…'}
       </Text>
-    </TouchableOpacity>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  button: {
-    backgroundColor: '#0EA5E9',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 30,
+  wrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#0EA5E9',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    paddingVertical: spacing.sm,
   },
-  recordingButton: {
-    backgroundColor: '#EF4444',
-    transform: [{ scale: 1.05 }],
+  button: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
   },
-  disabledButton: {
-    backgroundColor: '#475569',
+  idle: {
+    backgroundColor: colors.card,
+    borderColor: colors.accent,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+  recording: {
+    backgroundColor: colors.alertDangerBg,
+    borderColor: colors.alertDanger,
+  },
+  disabled: {
+    backgroundColor: colors.border,
+    borderColor: colors.border,
+    opacity: 0.7,
+  },
+  micIcon: {
+    fontSize: 26,
+  },
+  label: {
+    marginTop: spacing.xs,
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  labelRecording: {
+    color: colors.alertDanger,
+    fontWeight: '800',
   },
 });

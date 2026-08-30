@@ -1,30 +1,38 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { MessageSquareText, Map as MapIcon, BellRing, UserCog } from 'lucide-react-native';
+import { useAlertStore } from '../../src/store/alertStore';
+import { colors, brand } from '../../src/theme/theme';
 
 export default function TabLayout() {
+  const unreadCount = useAlertStore((s) => s.unreadCount);
+  const latestCritical = useAlertStore((s) => s.alerts.find((a) => a.severity === 'critical'));
+
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: '#0F172A' },
-        headerTintColor: '#38BDF8',
-        headerTitleStyle: { fontWeight: '800', fontSize: 18 },
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.accent,
+        headerTitleStyle: { fontWeight: '800', fontSize: 17 },
+        headerShadowVisible: false,
         tabBarStyle: {
-          backgroundColor: '#0F172A',
-          borderTopColor: '#1E293B',
-          height: 60,
-          paddingBottom: 8,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.borderSubtle,
+          height: 58,
+          paddingBottom: 6,
+          paddingTop: 6,
         },
-        tabBarActiveTintColor: '#38BDF8',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textFaint,
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'ORCA Intelligence',
+          title: brand.name,
           tabBarLabel: 'Chat',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>💬</Text>,
+          tabBarIcon: ({ color, size }) => <MessageSquareText size={size} color={color} strokeWidth={2.2} />,
         }}
       />
       <Tabs.Screen
@@ -32,7 +40,7 @@ export default function TabLayout() {
         options={{
           title: 'Marine Map & Routing',
           tabBarLabel: 'Map',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>🗺️</Text>,
+          tabBarIcon: ({ color, size }) => <MapIcon size={size} color={color} strokeWidth={2.2} />,
         }}
       />
       <Tabs.Screen
@@ -40,7 +48,19 @@ export default function TabLayout() {
         options={{
           title: 'Proactive Watchdog',
           tabBarLabel: 'Alerts',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>🚨</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <BellRing size={size} color={latestCritical ? colors.alertDanger : color} strokeWidth={2.2} />
+          ),
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: latestCritical ? colors.alertDanger : colors.accent,
+            color: '#FFFFFF',
+            fontSize: 10,
+            fontWeight: '800',
+            minWidth: 18,
+            height: 18,
+            borderRadius: 9,
+          },
         }}
       />
       <Tabs.Screen
@@ -48,7 +68,7 @@ export default function TabLayout() {
         options={{
           title: 'Role & Settings',
           tabBarLabel: 'Settings',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>⚙️</Text>,
+          tabBarIcon: ({ color, size }) => <UserCog size={size} color={color} strokeWidth={2.2} />,
         }}
       />
     </Tabs>

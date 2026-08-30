@@ -1,0 +1,19 @@
+{
+  "lat": 16.9891,
+  "lon": 82.2475,
+  "valid_time": "2026-08-29T06:00:00+05:30",
+  "sst_c": 28.2,
+  "chl_a_mgm3": 1.4,
+  "wave_height_m": 1.8,
+  "wind_speed_kt": 14,
+  "current_speed_ms": 0.42,
+  "current_dir_deg": 140,
+  "source_map": {
+    "sst_c": "Copernicus CMEMS",
+    "chl_a_mgm3": "NOAA ERDDAP",
+    "wave_height_m": "INCOIS OSF",
+    "wind_speed_kt": "INCOIS OSF",
+    "current_speed_ms": "Copernicus CMEMS"
+  },
+  "quality": "good"
+}

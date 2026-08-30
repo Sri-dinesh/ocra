@@ -102,9 +102,27 @@ export interface SyncPayloadResponse {
 }
 
 export interface WatchdogAlert {
-  alert_type: 'HIGH_WAVE' | 'IMBL_PROXIMITY' | 'CYCLONE' | string;
+  alert_type: 'HIGH_WAVE' | 'IMBL_PROXIMITY' | 'CYCLONE' | 'GALE' | string;
   severity: 'low' | 'moderate' | 'high' | 'critical';
   vessel_id: string;
   message: string;
   triggered_at: string;
+}
+
+export interface SubscribeRequest {
+  label: string;
+  lat: number;
+  lon: number;
+}
+
+export interface SubscribeResponse {
+  vessel_id: string;
+  message: string;
+  poll_interval_seconds: number;
+}
+
+export interface WatchdogPollResponse {
+  vessel_id: string;
+  active_alerts: WatchdogAlert[];
+  total_active: number;
 }

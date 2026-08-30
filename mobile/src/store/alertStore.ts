@@ -1,28 +1,129 @@
 import { create } from 'zustand';
-import { WatchdogAlert } from '../types/contract';
+import { WatchdogAlert, SubscribeResponse } from '../types/contract';
+import { watchdogApi } from '../api/watchdogApi';
+
+export const SEVERITY_ORDER = ['critical', 'high', 'moderate', 'low'] as const;
+export type Severity = (typeof SEVERITY_ORDER)[number];
 
 interface AlertState {
   alerts: WatchdogAlert[];
   unreadCount: number;
-  addAlert: (alert: WatchdogAlert) => void;
+  subscription: SubscribeResponse | null;
+  vesselId: string | null;
+  vesselLabel: string;
+  isSubscribing: boolean;
+  isPolling: boolean;
+  lastPolledAt: string | null;
+  watchdogPolling: boolean;
+
+  subscribeVessel: (label: string, lat: number, lon: number) => Promise<void>;
+  startPolling: () => void;
+  stopPolling: () => void;
+  refreshAlerts: () => Promise<void>;
+  dismissAlert: (id: string) => void;
   clearAlerts: () => void;
+  markAllRead: () => void;
+  setVesselLabel: (label: string) => void;
 }
 
-export const useAlertStore = create<AlertState>((set) => ({
-  alerts: [
-    {
-      alert_type: 'IMBL_PROXIMITY',
-      severity: 'critical',
-      vessel_id: 'demo-vessel-01',
-      message: 'You are 1.2nm from the International Maritime Boundary Line. Recommend course correction.',
-      triggered_at: '2026-08-29T06:42:00+05:30',
-    },
-  ],
-  unreadCount: 1,
-  addAlert: (alert) =>
-    set((state) => ({
-      alerts: [alert, ...state.alerts],
-      unreadCount: state.unreadCount + 1,
-    })),
+const DEFAULTS = {
+  alerts: [] as WatchdogAlert[],
+  unreadCount: 0,
+  subscription: null,
+  vesselId: null,
+  vesselLabel: 'Sea Hawk-01',
+  isSubscribing: false,
+  isPolling: false,
+  lastPolledAt: null,
+  watchdogPolling: false,
+};
+
+export const useAlertStore = create<AlertState>((set, get) => ({
+  ...DEFAULTS,
+
+  subscribeVessel: async (label, lat, lon) => {
+    set({ isSubscribing: true });
+    try {
+      const sub = await watchdogApi.subscribe({ label, lat, lon });
+      set({
+        subscription: sub,
+        vesselId: sub.vessel_id,
+        vesselLabel: label,
+        isSubscribing: false,
+      });
+      const alerts = await watchdogApi.getAlerts(sub.vessel_id);
+      if (alerts?.length) {
+        const fresh = alerts.filter(
+          (a) => !get().alerts.some((e) => `${e.alert_type}_${e.triggered_at}` === `${a.alert_type}_${a.triggered_at}`),
+        );
+        if (fresh.length) {
+          set((s) => ({
+            alerts: [...fresh, ...s.alerts].sort(
+              (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+            ),
+            unreadCount: s.unreadCount + fresh.length,
+          }));
+        }
+      }
+      set({ lastPolledAt: new Date().toISOString() });
+      get().startPolling();
+    } catch (e) {
+      console.warn('[watchdog] subscribe failed', e);
+      // Offline-tolerant: register locally with a stable demo identity so the
+      // rest of the app (overlay, badges, history) still functions.
+      set({
+        vesselId: 'demo-vessel-01',
+        vesselLabel: label,
+        subscription: {
+          vessel_id: 'demo-vessel-01',
+          message: 'Local watchdog profile (offline). Re-subscribe when back online.',
+          poll_interval_seconds: 30,
+        },
+      });
+    } finally {
+      set({ isSubscribing: false });
+    }
+  },
+
+  refreshAlerts: async () => {
+    const vesselId = get().vesselId;
+    if (!vesselId) return;
+    try {
+      const alerts = await watchdogApi.getAlerts(vesselId);
+      if (!alerts?.length) return;
+      set({
+        alerts: alerts,
+        lastPolledAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('[watchdog] poll failed (offline?)', e);
+    }
+  },
+
+  startPolling: () => {
+    if (get().watchdogPolling) return;
+    set({ watchdogPolling: true, isPolling: true });
+    const tick = async () => {
+      if (!get().watchdogPolling) return;
+      await get().refreshAlerts();
+    };
+    tick();
+    const interval = setInterval(tick, 20000);
+    // Keep the handle addressable so stopPolling can clear it.
+    (get() as unknown as { _pollTimer?: ReturnType<typeof setInterval> })._pollTimer = interval;
+  },
+
+  stopPolling: () => {
+    const s = get() as unknown as { _pollTimer?: ReturnType<typeof setInterval> };
+    if (s._pollTimer) clearInterval(s._pollTimer);
+    set({ watchdogPolling: false, isPolling: false });
+  },
+
+  dismissAlert: (id) => {
+    set((s) => ({ alerts: s.alerts.filter((a) => `${a.alert_type}_${a.triggered_at}` !== id) }));
+  },
+
   clearAlerts: () => set({ alerts: [], unreadCount: 0 }),
+  markAllRead: () => set({ unreadCount: 0 }),
+  setVesselLabel: (vesselLabel) => set({ vesselLabel }),
 }));
