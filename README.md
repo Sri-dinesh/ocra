@@ -2,143 +2,241 @@
 
 > **Smart India Hackathon (SIH26176) • Indian Space Research Organisation (ISRO) Department of Space**
 
-ORCA is an Agentic AI-powered conversational marine intelligence and decision-support platform. It fuses heterogeneous Earth Observation, oceanographic, meteorological, and GIS information into an evidence-backed, multi-turn conversational experience with transparent risk evaluation, A* marine pathfinding, and proactive safety monitoring.
+ORCA is an Agentic AI-powered conversational marine intelligence and decision-support platform. It fuses heterogeneous Earth Observation data, oceanographic forecasts, meteorological bulletins, and maritime GIS layers into an evidence-backed, multi-turn conversational experience with transparent risk evaluation, A* safe marine route planning, and proactive safety monitoring.
 
 ---
 
 ## 1. System Architecture
 
 ```
-                                  ┌───────────────────────────────┐
-                                  │       Mobile App (Expo)       │
-                                  │   Akash • (Chat, Map, Voice)  │
-                                  └───────────────┬───────────────┘
-                                                  │ HTTP (REST)
-                                                  ▼
-                                  ┌───────────────────────────────┐
-                                  │      FastAPI Backend API      │
-                                  │       Sridinesh (Lead)        │
-                                  └───────┬───────────────┬───────┘
-                                          │               │
-                     ┌────────────────────┴─────┐   ┌─────┴─────────────────────┐
-                     │   LangGraph Agent Brain  │   │     Geospatial Engine     │
-                     │  Sridinesh • Reasoning   │   │  Charan • PostGIS, A*     │
-                     │  Planner / Synthesis /   │   │  Connectors (INCOIS, IMD, │
-                     │  Deterministic Guardrail │   │  Copernicus, NOAA, OBIS)  │
-                     └──────────────────────────┘   └───────────────────────────┘
+                                  ┌─────────────────────────────────────────┐
+                                  │       Mobile App (Expo SDK 57)          │
+                                  │   React Native 0.86 • React 19 • Leaflet │
+                                  │   Push-to-Talk Voice • Live Chat & Map  │
+                                  └────────────────────┬────────────────────┘
+                                                       │ HTTP REST (JSON)
+                                                       ▼
+                                  ┌─────────────────────────────────────────┐
+                                  │        FastAPI Backend Gateway          │
+                                  │    Async REST API • Port 8000 (0.0.0.0) │
+                                  └──────────────┬───────────────────┬──────┘
+                                                 │                   │
+                     ┌───────────────────────────┴──┐     ┌──────────┴─────────────────────────┐
+                     │    LangGraph Agent Brain     │     │      Geospatial & Risk Engine       │
+                     │  • Planner Agent (Intent)    │     │  • PostGIS / SQLite Spatial Engine  │
+                     │  • Parallel Domain Gatherer  │     │  • A* Safety-Aware Route Planner    │
+                     │  • Deterministic Guardrail   │     │  • Real Data Adapters (INCOIS, IMD, │
+                     │  • Risk Engine (Bands 0-100) │     │    Copernicus CMEMS, NOAA ERDDAP)   │
+                     │  • Grounded Synthesis (i18n) │     │  • Watchdog Proactive Vessel Daemon │
+                     └──────────────────────────────┘     └─────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Repository Structure
+## 2. Key Features & Capabilities
+
+* **Multi-Agent Conversational Brain (LangGraph)**:
+  * **Planner Node**: Resolves query intent, geographical coordinates, and persona roles (*Fisherman*, *Researcher*, *Coast Guard*, *Policymaker*).
+  * **Parallel Domain Ingestion**: Concurrently queries physical ocean models, weather advisories, and marine protected areas.
+  * **Deterministic Guardrail Node**: Hard verification gate ensuring every factual claim is strictly linked to a verified data source.
+  * **Risk & Safety Engine**: Computes normalized safety risk scores (`0-100`), classification bands (*Low*, *Moderate*, *High*, *Extreme*), and sail/no-sail clearances.
+  * **Grounded Multilingual Synthesis**: Produces localized advisories in English, Tamil, Hindi, and other regional coastal languages with zero hallucination tolerance.
+
+* **Live Earth Observation & Ocean Connectors**:
+  * **INCOIS OSF**: Real-time wave heights, swell periods, and surface wind velocities.
+  * **Copernicus CMEMS**: Multi-layer sea surface temperature (SST) and surface current vectors.
+  * **NOAA CoastWatch ERDDAP**: VIIRS daily chlorophyll-*a* concentrations and biological productivity.
+  * **IMD Bulletin Feed**: Active cyclone warnings, depression tracks, and meteorological bulletins.
+  * **Survey of India & MoEFCC**: Official International Maritime Boundary Line (IMBL) datum and Marine Protected Area (MPA) boundaries.
+
+* **Geospatial Intelligence & Safe Routing**:
+  * **A* Nautical Pathfinding**: Calculates optimal sea routes avoiding shallow depths, severe wave hazards, and restricted conservation zones.
+  * **Geofence Containment & Watchdog**: Proactively tracks registered vessels and alerts if approaching maritime borders (e.g., IMBL) or storm systems.
+
+* **Cross-Platform Mobile Client (Expo SDK 57)**:
+  * **Voice-First Interaction**: Push-to-talk audio input powered by modern `expo-audio`.
+  * **Interactive Maritime Maps**: Leaflet WebView map with real-time ocean parameter heatmaps, safe routes, and danger buffers.
+  * **Resilient Network Client**: Automatic Metro host discovery, Android emulator bridge (`10.0.2.2`), and LAN IP failover with 90s synthesis timeout.
+
+---
+
+## 3. Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| **Mobile Client** | React Native 0.86, Expo SDK 57, React 19, TypeScript, Zustand, Leaflet Map WebView, Expo Audio, Reanimated 4 |
+| **Backend Framework** | Python 3.11+, FastAPI, Uvicorn, Pydantic v2, HTTPX |
+| **Agentic AI & LLM** | LangGraph, Google GenAI SDK (`google-genai` v2+), Gemini 2.5 Flash |
+| **Database & GIS** | Supabase (PostgreSQL 17 + PostGIS), SQLAlchemy 2.0, GeoAlchemy2, Shapely, PyProj, SQLite Spatial Fallback |
+| **Data Sources** | INCOIS THREDDS, Copernicus Marine (CMEMS), NOAA CoastWatch, IMD Meteorological Bulletins |
+
+---
+
+## 4. Repository Structure
 
 ```
-orca/
-├── README.md
+ocra/
+├── README.md                                # Project documentation & overview
 ├── .gitignore
-├── docs/
-│   ├── ORCA_SIH26176_Comprehensive_PRD.md
-│   ├── ORCA_Implementation_Plan_LEAD_Sridinesh.md
-│   ├── ORCA_Implementation_Plan_Charan.md
-│   ├── ORCA_Implementation_Plan_Akash.md
-│   ├── API_CONTRACT.md              # Single source of truth for API contracts
-│   └── DEMO_SCRIPT.md               # Hackathon demo & presentation script
+├── docs/                                    # System specs & documentation
+│   ├── ORCA_SIH26176_Comprehensive_PRD.md   # Comprehensive Product Requirement Doc
+│   ├── API_CONTRACT.md                      # Single source of truth for API schemas
+│   ├── DEMO_SCRIPT.md                       # Presentation & demonstration script
+│   └── Backend_Workflow.md                  # Detailed backend orchestration specification
 │
-├── backend/                         # FastAPI Backend
+├── backend/                                 # FastAPI Backend Service
 │   ├── app/
-│   │   ├── main.py                  # FastAPI app entrypoint
-│   │   ├── core/                    # Config & Logging
-│   │   ├── db/                      # Supabase / SQLAlchemy sessions & migrations
-│   │   ├── models/                  # SQLAlchemy DB models
-│   │   ├── schemas/                 # Pydantic request/response schemas
-│   │   ├── agents/                  # LangGraph multi-agent orchestration
-│   │   ├── reasoning/               # Guardrails, risk score, evidence builder
-│   │   ├── connectors/              # INCOIS, Copernicus, NOAA, IMD, OBIS adapters
-│   │   ├── geospatial/              # Fusion, geofencing, A* pathfinder, cost grids
-│   │   ├── watchdog/                # Proactive polling daemon & alerts
-│   │   ├── api/v1/                  # API route handlers (/query, /route, /oceanstate, etc.)
-│   │   └── mock/                    # Shared mock JSON files
-│   ├── requirements.txt
+│   │   ├── main.py                          # Application entrypoint (Host 0.0.0.0)
+│   │   ├── core/                            # Configuration, LLM bridge & logging
+│   │   ├── db/                              # Database session, models, and zone seeds
+│   │   ├── models/                          # SQLAlchemy relational & spatial entities
+│   │   ├── schemas/                         # Pydantic request/response schemas
+│   │   ├── agents/                          # LangGraph state machine & multi-agent workflow
+│   │   ├── reasoning/                       # Guardrails, risk engine, evidence builder
+│   │   ├── connectors/                      # Live INCOIS, Copernicus, NOAA, IMD adapters
+│   │   ├── geospatial/                      # Marine fusion, geofence, A* pathfinder
+│   │   ├── watchdog/                        # Vessel tracking & proactive alert service
+│   │   └── api/v1/                          # REST routes (/query, /route, /oceanstate, /watchdog)
+│   ├── requirements.txt                     # Backend Python dependencies
 │   ├── Dockerfile
-│   └── .env.example
+│   └── .env.example                         # Backend environment template
 │
-└── mobile/                          # Expo React Native App
-    ├── app/                         # Expo Router pages & tabs (Chat, Map, Alerts, Profile)
+└── mobile/                                  # Expo React Native Mobile App
+    ├── app/                                 # Expo Router tabs (Chat, Map, Alerts, Settings)
     ├── src/
-    │   ├── components/              # Chat bubbles, Leaflet MapView, RiskBadge, etc.
-    │   ├── store/                   # Zustand state stores
-    │   ├── api/                     # API client with USE_MOCK fallback & route handlers
-    │   ├── offline/                 # Expo SQLite sync cache
-    │   ├── voice/                   # Bhashini STT / TTS wrappers
-    │   └── types/                   # contract.ts mirroring backend schemas
-    ├── app.json
-    ├── package.json
-    └── .env.example
+    │   ├── api/                             # Live API client with automatic network failover
+    │   ├── components/                      # PushToTalk, ChatView, LeafletMapView, RiskBadge
+    │   ├── store/                           # Zustand state management
+    │   ├── voice/                           # Voice bridge & speech synthesis
+    │   └── types/                           # TypeScript schemas matching API contracts
+    ├── app.json                             # Expo SDK 57 configuration
+    ├── package.json                         # Mobile dependencies
+    └── .env.example                         # Mobile environment template
 ```
 
 ---
 
-## 3. Team Responsibilities & Git Workflow
+## 5. Quickstart & Setup Guide
 
-| Member | Branch | Scope | Owned Directories |
-|---|---|---|---|
-| **Sridinesh (Lead)** | `sridinesh` | Multi-agent orchestration, Planner, Synthesis, Guardrail, Risk Engine, `/query`, `/evidence` | `backend/app/agents/`, `backend/app/reasoning/`, `backend/app/api/v1/query.py`, `backend/app/api/v1/evidence.py`, `backend/app/core/`, `backend/app/main.py` |
-| **Charan** | `charan` | Data connectors, Supabase PostGIS DB & models, A* pathfinder, geofencing, Watchdog daemon, `/route`, `/oceanstate` | `backend/app/db/`, `backend/app/models/`, `backend/app/connectors/`, `backend/app/geospatial/`, `backend/app/watchdog/`, `backend/app/api/v1/route.py`, `oceanstate.py`, `watchdog.py` |
-| **Akash** | `akash` | Expo React Native app, Leaflet WebView map, Push-to-Talk voice, Zustand stores, SQLite offline mode, Watchdog alerts UI | `mobile/` (entire mobile tree) |
-
-### Branch Setup CLI Commands (One Branch Per Member)
-```bash
-# 1. Fetch main baseline
-git checkout main
-git pull origin main
-
-# 2. Create and switch to your dedicated branch:
-git checkout -b sridinesh   # For Lead (Sridinesh)
-git checkout -b charan      # For Backend-B (Charan)
-git checkout -b akash       # For Frontend (Akash)
-
-# 3. Publish to GitHub:
-git push -u origin <branch_name>
-```
-
-### Development & Merge Sequence
-1. **Isolated Development**: All code is committed to each developer's dedicated branch (`sridinesh`, `charan`, `akash`). No direct pushes to `main`.
-2. **Contract-Frozen**: [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) defines the shared request/response models.
-3. **Merge Sequence (by Lead)**:
-   - `charan` → `main` (Connectors, PostGIS, A* Router)
-   - Swap temporary agent stubs (`_stubs.py`) with Charan's real modules
-   - `akash` → `main` (Mobile App, Leaflet WebView, Voice UI)
-   - `sridinesh` → `main` (LangGraph Agents, Guardrails, Risk Engine)
-   - Smoke test end-to-end and tag: `git tag v1.0-demo && git push origin --tags`
+### Prerequisites
+* **Python 3.11+**
+* **Node.js 18+** & **npm**
+* **Google Gemini API Key** (for agentic reasoning)
+* **Supabase Project** (optional for cloud persistence; local spatial database is built-in)
 
 ---
 
-## 4. Quickstart
+### A. Backend Setup
 
-### Backend Setup
-```bash
-cd backend
-python -m venv venv
-# On Windows:
-.\venv\Scripts\activate
-# On Linux/macOS:
-source venv/bin/activate
+1. **Navigate to the backend directory and set up a virtual environment**:
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate    # On Windows: .\venv\Scripts\activate
+   ```
 
-pip install -r requirements.txt
-cp .env.example .env
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-# Run FastAPI dev server:
-uvicorn app.main:app --reload --port 8000
-```
-Interactive Swagger docs: `http://localhost:8000/docs`
+3. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` with your credentials:
+   ```ini
+   PORT=8000
+   ENVIRONMENT=development
+   LOG_LEVEL=INFO
 
-### Mobile Setup
-```bash
-cd mobile
-npm install
-cp .env.example .env
+   # Google Gemini AI
+   GEMINI_API_KEY=your_actual_gemini_api_key
+   GEMINI_MODEL=gemini-2.5-flash
 
-# Start Expo dev client:
-npx expo start
-```
-By default, `EXPO_PUBLIC_USE_MOCK=true` allows the full mobile app to run completely independent of the backend.
+   # Database (Supabase or Local SQLite Spatial)
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_KEY=your-supabase-key
+   DATABASE_URL=sqlite:///./app.db
+   ```
+
+4. **Initialize database schema and seed boundary zones**:
+   ```bash
+   python -c "from app.db.init_db import init_db; from app.db.seed_zones import main; init_db(); main()"
+   ```
+
+5. **Start the FastAPI server listening on all network interfaces**:
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+   * **Interactive Swagger Documentation**: `http://localhost:8000/docs`
+   * **Health Check**: `http://localhost:8000/health`
+
+---
+
+### B. Mobile App Setup
+
+1. **Navigate to the mobile directory and install packages**:
+   ```bash
+   cd mobile
+   npm install
+   ```
+
+2. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
+   Set your host machine's LAN IP (or leave blank for automatic Metro IP resolution):
+   ```ini
+   EXPO_PUBLIC_API_BASE_URL=http://<YOUR_LOCAL_IP>:8000
+   ```
+
+3. **Start the Expo development server**:
+   ```bash
+   npx expo start -c
+   ```
+
+4. **Run on Device or Simulator**:
+   * **Physical Device**: Scan the QR code using the **Expo Go** app on Android/iOS (ensure your phone is connected to the same WiFi network as your computer).
+   * **Android Emulator**: Press `a` in the terminal (automatically routes to `http://10.0.2.2:8000`).
+   * **Web Preview**: Press `w` in the terminal.
+
+---
+
+## 6. Core API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/query` | Process marine advisory query through LangGraph multi-agent pipeline. |
+| `GET` | `/api/v1/evidence/{query_id}` | Retrieve complete grounding evidence trace, latency breakdown, and sources. |
+| `POST` | `/api/v1/route` | Calculate safe nautical navigation path via A* avoidance algorithm. |
+| `GET` | `/api/v1/oceanstate` | Retrieve fused multi-source ocean parameters (SST, Waves, Wind, Chlorophyll). |
+| `POST` | `/api/v1/watchdog/subscribe` | Register vessel location for proactive geofence monitoring. |
+| `GET` | `/api/v1/watchdog/alerts` | Poll real-time boundary proximity or severe weather alerts. |
+| `GET` | `/api/v1/sync/payload` | Download offline geospatial bundle for disconnected coastal operation. |
+
+---
+
+## 7. Verification & Testing
+
+* **Backend Test Suite**:
+  ```bash
+  cd backend
+  pytest tests/ -v
+  ```
+* **Frontend TypeScript Verification**:
+  ```bash
+  cd mobile
+  npm run typecheck
+  ```
+* **Expo Dependency Check**:
+  ```bash
+  cd mobile
+  npx expo-doctor
+  ```
+
+---
+
+## 8. License & Acknowledgments
+
+Developed for the **Smart India Hackathon (SIH26176)** in collaboration with the **Indian Space Research Organisation (ISRO)** and the Department of Space. Data services provided by **INCOIS**, **Copernicus Marine Service**, **NOAA CoastWatch**, and **IMD**.
