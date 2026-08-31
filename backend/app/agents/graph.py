@@ -145,10 +145,10 @@ async def node_parallel_domains(state: AgentState) -> AgentState:
     try:
         results = await asyncio.wait_for(
             asyncio.gather(*tasks, return_exceptions=True),
-            timeout=3.5
+            timeout=8.0
         )
     except asyncio.TimeoutError:
-        logger.error("[LangGraph] Domain gathering timed out after 3.5s. Degraded mode active.")
+        logger.error("[LangGraph] Domain gathering timed out after 8.0s. Degraded mode active.")
         results = [None] * len(tasks)
 
     for key, res in zip(task_keys, results):
