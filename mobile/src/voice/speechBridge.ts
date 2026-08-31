@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { API_BASE_URL } from '../api/client';
 import { ttsService } from './tts';
 import { useSettingsStore } from '../store/settingsStore';
 
@@ -34,7 +35,7 @@ export const sttService = {
       } as any);
       formData.append('language', language);
 
-      const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.1.60:8000';
+      const baseUrl = API_BASE_URL;
       const res = await fetch(`${baseUrl}/api/v1/voice/stt`, {
         method: 'POST',
         headers: {
