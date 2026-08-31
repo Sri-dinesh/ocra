@@ -9,19 +9,12 @@ logger = logging.getLogger(__name__)
 
 class ObisConnector(DataConnector):
     def fetch(self, lat: float, lon: float, time_window: datetime.datetime) -> Any:
-        if settings.USE_MOCK_CONNECTORS:
-            logger.info("Using mock OBIS data")
-            return {
-                "species_count": 12,
-                "dominant_species": "Tuna"
-            }
-
-        logger.info(f"Fetching real OBIS data for {lat}, {lon}")
+        logger.info(f"[OBIS] Fetching live ocean biodiversity occurrences for ({lat}, {lon})...")
         # Search for occurrences within roughly a 10km radius (approx 0.1 degree)
         geom = f"POLYGON(({lon-0.1} {lat-0.1}, {lon+0.1} {lat-0.1}, {lon+0.1} {lat+0.1}, {lon-0.1} {lat+0.1}, {lon-0.1} {lat-0.1}))"
         
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with httpx.Client(timeout=3.0) as client:
                 response = client.get(
                     "https://api.obis.org/v3/occurrence",
                     params={"geometry": geom, "size": 100}

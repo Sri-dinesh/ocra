@@ -21,8 +21,15 @@ class Settings(BaseSettings):
     SUPABASE_KEY: Optional[str] = None
     DATABASE_URL: Optional[str] = None
 
+    # Live Data Connector Configuration
+    COPERNICUS_USERNAME: Optional[str] = None
+    COPERNICUS_PASSWORD: Optional[str] = None
+    INCOIS_API_ENDPOINT: Optional[str] = None
+    NOAA_ERDDAP_ENDPOINT: Optional[str] = None
+    IMD_BULLETIN_FEED_URL: Optional[str] = None
+
     # Toggles & Fallbacks
-    USE_MOCK_CONNECTORS: bool = True
+    USE_MOCK_CONNECTORS: bool = False
     USE_MOCK_REASONING: bool = False
 
     class Config:
