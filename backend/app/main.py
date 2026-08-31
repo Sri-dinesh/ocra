@@ -91,3 +91,9 @@ async def root():
         "health": "/health",
         "version": "1.0.0",
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=True)
+

@@ -65,12 +65,14 @@ def persist_relational_query_trace(query_id: str, state: AgentState, evidence_it
             step_name = node.lower()
             if step_name not in ["planner", "ocean", "weather", "gis", "guardrail", "risk", "synthesis"]:
                 step_name = "planner"
+            lat_val = telemetry.get("latency_ms")
+            dur = int(lat_val.get(node, 10)) if isinstance(lat_val, dict) else (int(lat_val) if isinstance(lat_val, (int, float)) else 10)
             plan_step = PlanStep(
                 query_log_id=query_log.id,
                 agent_name=step_name,
                 step_order=idx + 1,
                 status="success",
-                duration_ms=telemetry.get("latency_ms", {}).get(node, 10),
+                duration_ms=dur,
             )
             db.add(plan_step)
 

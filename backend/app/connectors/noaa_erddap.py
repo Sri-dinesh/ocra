@@ -31,6 +31,7 @@ class NoaaErddapConnector(DataConnector):
         if ERDDAP is not None:
             try:
                 e = ERDDAP(server=self.server, protocol="griddap", response="csv")
+                e.requests_kwargs = {"timeout": 2.0}
                 e.dataset_id = self.dataset_id
                 e.variables = ["chlor_a"]
                 time_str = time_window.strftime("%Y-%m-%dT00:00:00Z")

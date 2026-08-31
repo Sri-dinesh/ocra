@@ -7,13 +7,14 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Server
+    HOST: str = "0.0.0.0"
     PORT: int = 8000
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
 
     # AI
     GEMINI_API_KEY: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash"
 
     # Database
     SUPABASE_URL: Optional[str] = None

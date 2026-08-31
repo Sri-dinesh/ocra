@@ -36,7 +36,7 @@ class IncoisOsfConnector(DataConnector):
                 "accept": "csv",
             }
 
-            with httpx.Client(timeout=4.0) as client:
+            with httpx.Client(timeout=2.0) as client:
                 response = client.get(base_url, params=params)
                 if response.status_code == 200:
                     reader = csv.DictReader(io.StringIO(response.text))
