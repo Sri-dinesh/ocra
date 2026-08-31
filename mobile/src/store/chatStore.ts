@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { QueryResponse } from '../types/contract';
+import { QueryResponse, LocationHint } from '../types/contract';
 
 export interface ChatMessage {
   id: string;
@@ -7,20 +7,26 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
   responsePayload?: QueryResponse;
+  locationHint?: LocationHint;
+  kind?: 'normal' | 'thinking' | 'offline' | 'error' | 'clarification';
 }
 
 interface ChatState {
   messages: ChatMessage[];
   isLoading: boolean;
+  lastLocationHint: LocationHint | undefined;
   addMessage: (message: ChatMessage) => void;
   setLoading: (loading: boolean) => void;
+  setLastLocationHint: (hint: LocationHint | undefined) => void;
   clearChat: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   isLoading: false,
+  lastLocationHint: undefined,
   addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
   setLoading: (isLoading) => set({ isLoading }),
-  clearChat: () => set({ messages: [] }),
+  setLastLocationHint: (hint) => set({ lastLocationHint: hint }),
+  clearChat: () => set({ messages: [], lastLocationHint: undefined }),
 }));

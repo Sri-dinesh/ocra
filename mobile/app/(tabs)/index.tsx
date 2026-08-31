@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useChatStore, ChatMessage } from '../../src/store/chatStore';
@@ -17,121 +16,199 @@ import { queryApi } from '../../src/api/queryApi';
 import { ChatBubble } from '../../src/components/chat/ChatBubble';
 import { PushToTalkButton } from '../../src/components/chat/PushToTalkButton';
 import { OfflineBanner } from '../../src/components/common/OfflineBanner';
+import { PressableScale, ThinkingDots, FadeInDownView, FadeInView } from '../../src/components/ui/anim';
+import { useOnline } from '../../src/offline/connectivity';
+import { sqliteCache } from '../../src/offline/sqliteCache';
+import { answerFromCache } from '../../src/offline/offlineAnswers';
+import { sttService, speakReply } from '../../src/voice/speechBridge';
+import { colors, spacing, radius, typography, brand, shadow } from '../../src/theme/theme';
+import { LocationHint } from '../../src/types/contract';
+
+const DEFAULT_LOCATION: LocationHint = { lat: 16.9891, lon: 82.2475, name: 'Kakinada' };
+
+const EXAMPLES = [
+  'Can I go fishing tomorrow morning near Kakinada?',
+  'What are the wave height and wind speed at my location?',
+  'Plot the safest route to the fishing grounds 25 nm east.',
+  'Any cyclone warning for the coast tonight?',
+];
 
 export default function ChatScreen() {
   const router = useRouter();
-  const [inputQuery, setInputQuery] = useState('');
-  const { messages, isLoading, addMessage, setLoading } = useChatStore();
+  const online = useOnline();
+  const [inputQuery, setInputQuery] = React.useState('');
+  const { messages, isLoading, addMessage, setLoading, lastLocationHint, setLastLocationHint } =
+    useChatStore();
   const { role, language } = useSettingsStore();
+  const listRef = useRef<FlatList<ChatMessage>>(null);
 
-  const handleSend = async (queryText?: string) => {
-    const text = queryText || inputQuery;
-    if (!text.trim() || isLoading) return;
+  const handleSend = useCallback(
+    async (queryText?: string) => {
+      const text = (queryText ?? inputQuery).trim();
+      if (!text || isLoading) return;
 
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      text: text.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
+      const hint: LocationHint =
+        lastLocationHint ??
+        (/\bnear ([\w\s]+)\??$/.test(text) ? lastLocationHint ?? DEFAULT_LOCATION : DEFAULT_LOCATION);
 
-    addMessage(userMsg);
-    setInputQuery('');
-    setLoading(true);
-
-    try {
-      const response = await queryApi.sendQuery({
-        text: text.trim(),
-        role,
-        language,
-        location_hint: { lat: 16.9891, lon: 82.2475, name: 'Kakinada' },
-      });
-
-      const orcaMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'orca',
-        text: response.recommendation,
+      const userMsg: ChatMessage = {
+        id: `${Date.now()}`,
+        role: 'user',
+        text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        responsePayload: response,
+        locationHint: hint,
       };
 
-      addMessage(orcaMsg);
-    } catch (err) {
-      addMessage({
-        id: (Date.now() + 1).toString(),
-        role: 'orca',
-        text: 'Unable to reach marine decision service. Please try again.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+      addMessage(userMsg);
+      setInputQuery('');
+      setLoading(true);
+
+      try {
+        if (!online) {
+          // Edge offline mode (Task A6.4): answer strictly from SQLite cache.
+          await new Promise((r) => setTimeout(r, 450));
+          const cached = await sqliteCache.getNearestPayload(hint.lat, hint.lon);
+          if (cached) {
+            const { text: answerText, cellUsed } = answerFromCache(text, cached);
+            addMessage({
+              id: `${Date.now() + 1}`,
+              role: 'orca',
+              text: `${answerText}${cellUsed && (cellUsed.lat !== hint.lat || cellUsed.lon !== hint.lon) ? ` (Nearest cached cell: ${cellUsed.lat.toFixed(2)}, ${cellUsed.lon.toFixed(2)}.)` : ''}`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              kind: 'offline',
+            });
+          } else {
+            addMessage({
+              id: `${Date.now() + 1}`,
+              role: 'orca',
+              text: 'Offline mode: no cached data is available for any cell yet. Connect to the network once so Sagaradristi can prime its offline cache.',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              kind: 'offline',
+            });
+          }
+        } else {
+          const response = await queryApi.sendQuery({ text, role, language, location_hint: hint });
+          addMessage({
+            id: `${Date.now() + 1}`,
+            role: 'orca',
+            text: response.recommendation,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            responsePayload: response,
+          });
+          setLastLocationHint(hint);
+          speakReply(response.recommendation).catch(() => undefined);
+        }
+      } catch (err: any) {
+        console.error('[sendQuery error]:', err?.message, 'URL:', err?.config?.url, 'Data:', err?.response?.data);
+        addMessage({
+          id: `${Date.now() + 1}`,
+          role: 'orca',
+          text: `Unable to reach the marine decision service (${err?.message || 'Error'}). Check connectivity and try again.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          kind: 'error',
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [inputQuery, isLoading, online, role, language, lastLocationHint, setLastLocationHint],
+  );
+
+  const handlePushToTalk = useCallback(async (uri: string) => {
+    const transcript = await sttService.transcribe(uri, useSettingsStore.getState().language);
+    handleSend(transcript);
+  }, [handleSend]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ChatMessage }) => (
+      <ChatBubble
+        message={item}
+        onPressEvidence={(queryId) => router.push(`/evidence/${queryId}`)}
+      />
+    ),
+    [router],
+  );
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <OfflineBanner isOffline={false} />
+      <OfflineBanner />
 
       {messages.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🌊</Text>
-          <Text style={styles.emptyTitle}>Welcome to ORCA</Text>
-          <Text style={styles.emptySubtitle}>
-            Ask about sea conditions, fishing zones, cyclone alerts, or safe navigation.
-          </Text>
-          <TouchableOpacity
-            style={styles.exampleChip}
-            onPress={() => handleSend('Can I go fishing tomorrow morning near Kakinada?')}
-          >
-            <Text style={styles.exampleChipText}>
-              💡 "Can I go fishing tomorrow morning near Kakinada?"
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.emptyContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <FadeInView delay={40}>
+            <View style={styles.emblem}>
+              <Text style={styles.emblemGlyph}>{brand.waveMark}</Text>
+            </View>
+          </FadeInView>
+          <FadeInDownView delay={140}>
+            <Text style={styles.brandName}>{brand.name}</Text>
+            <Text style={styles.brandDev}>{brand.nameDevanagari}</Text>
+            <Text style={styles.tagline}>{brand.tagline}</Text>
+          </FadeInDownView>
+
+          <Text style={styles.hint}>Try one of these…</Text>
+          {EXAMPLES.map((q, i) => (
+            <FadeInDownView key={q} delay={220 + i * 90}>
+              <PressableScale
+                style={styles.exampleChip}
+                onPress={() => handleSend(q)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.exampleText}>💡 {q}</Text>
+              </PressableScale>
+            </FadeInDownView>
+          ))}
+        </ScrollView>
       ) : (
         <FlatList
+          ref={listRef}
           data={messages}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ChatBubble
-              message={item}
-              onPressEvidence={(queryId) => router.push(`/evidence/${queryId}`)}
-            />
-          )}
+          renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          windowSize={7}
+          maxToRenderPerBatch={12}
+          updateCellsBatchingPeriod={40}
+          initialNumToRender={12}
         />
       )}
 
       {isLoading && (
         <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color="#38BDF8" />
-          <Text style={styles.loadingText}>ORCA is analyzing marine sources...</Text>
+          <ThinkingDots />
+          <Text style={styles.loadingText}>Scanning the oceans…</Text>
         </View>
       )}
 
       <View style={styles.inputBar}>
         <TextInput
           style={styles.input}
-          placeholder="Ask marine question..."
-          placeholderTextColor="#64748B"
+          placeholder="Ask a marine question…"
+          placeholderTextColor={colors.textFaint}
           value={inputQuery}
           onChangeText={setInputQuery}
           onSubmitEditing={() => handleSend()}
+          returnKeyType="send"
         />
-        <TouchableOpacity
+        <PressableScale
           style={[styles.sendButton, !inputQuery.trim() && styles.sendButtonDisabled]}
           disabled={!inputQuery.trim() || isLoading}
           onPress={() => handleSend()}
+          accessibilityRole="button"
         >
           <Text style={styles.sendButtonText}>Send</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <View style={styles.voiceRow}>
-        <PushToTalkButton isProcessing={isLoading} />
+        <PushToTalkButton isProcessing={isLoading} onRecordingComplete={handlePushToTalk} />
       </View>
     </KeyboardAvoidingView>
   );
@@ -140,93 +217,126 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A192F',
+    backgroundColor: colors.bg,
   },
   listContent: {
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   emptyContainer: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+  emblem: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    ...shadow.float,
   },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#38BDF8',
-    marginBottom: 8,
+  emblemGlyph: {
+    fontSize: 40,
+    color: colors.aqua,
+    fontWeight: '900',
   },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#94A3B8',
+  brandName: {
+    ...typography.hero,
+    color: colors.text,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
+  },
+  brandDev: {
+    fontSize: 15,
+    color: colors.aqua,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  tagline: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xxl,
+  },
+  hint: {
+    ...typography.caption,
+    color: colors.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.md,
   },
   exampleChip: {
-    backgroundColor: '#1E293B',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    marginBottom: spacing.sm,
+    alignSelf: 'stretch',
   },
-  exampleChipText: {
-    color: '#E2E8F0',
+  exampleText: {
+    color: colors.textSecondary,
     fontSize: 13,
+    fontWeight: '600',
   },
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   loadingText: {
-    color: '#38BDF8',
-    marginLeft: 8,
+    color: colors.accent,
     fontSize: 13,
+    fontWeight: '600',
   },
   inputBar: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#0F172A',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#1E293B',
+    borderTopColor: colors.borderSubtle,
     alignItems: 'center',
   },
   input: {
     flex: 1,
-    backgroundColor: '#1E293B',
-    borderRadius: 24,
-    paddingHorizontal: 16,
+    backgroundColor: colors.card,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-    color: '#FFFFFF',
+    color: colors.text,
     fontSize: 15,
-    marginRight: 8,
+    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   sendButton: {
-    backgroundColor: '#0EA5E9',
-    paddingHorizontal: 16,
+    backgroundColor: colors.accentDeep,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: radius.pill,
   },
   sendButtonDisabled: {
-    backgroundColor: '#334155',
+    backgroundColor: colors.border,
   },
   sendButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: colors.text,
+    fontWeight: '800',
     fontSize: 14,
   },
   voiceRow: {
-    paddingVertical: 8,
-    backgroundColor: '#0F172A',
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
     alignItems: 'center',
   },
 });
