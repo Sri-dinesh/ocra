@@ -12,6 +12,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import Animated, {
+  SharedValue,
   Easing,
   FadeIn,
   FadeInDown,
@@ -106,7 +107,7 @@ export const PulseRing: React.FC<{
 };
 
 /** Three staggered "scanning" dots for the thinking state. */
-const ThinkingDot: React.FC<{ progress: Animated.SharedValue<number>; offset: number; color: string }> = ({
+const ThinkingDot: React.FC<{ progress: SharedValue<number>; offset: number; color: string }> = ({
   progress,
   offset,
   color,

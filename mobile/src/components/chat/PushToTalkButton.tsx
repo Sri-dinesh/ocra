@@ -1,6 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { PressableScale, PulseRing } from '../ui/anim';
 import { colors, spacing, radius, typography } from '../../theme/theme';
@@ -13,67 +18,48 @@ interface Props {
 
 export const PushToTalkButton: React.FC<Props> = ({ onRecordingComplete, isProcessing, disabled }) => {
   const [isRecording, setIsRecording] = useState(false);
-
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
+    setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
     }).catch(() => undefined);
-    return () => {
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => undefined);
-      }
-    };
   }, []);
 
   const handlePressIn = async () => {
     if (disabled || isProcessing) return;
     try {
-      if (recordingRef.current) {
-        try {
-          await recordingRef.current.stopAndUnloadAsync();
-        } catch (_) {}
-        recordingRef.current = null;
-      }
-      const perm = await Audio.requestPermissionsAsync();
-      if (perm.status !== 'granted') {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm.granted) {
         console.warn('[ptt] audio permission not granted');
         return;
       }
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = recording;
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
       setIsRecording(true);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (e) {
       console.warn('[ptt] could not start recording', e);
-      recordingRef.current = null;
       setIsRecording(false);
     }
   };
 
   const handlePressOut = async () => {
-    if (!isRecording || !recordingRef.current) return;
+    if (!isRecording) return;
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
       setIsRecording(false);
       if (uri) onRecordingComplete?.(uri);
     } catch (e) {
       console.warn('[ptt] could not finalize recording', e);
-      recordingRef.current = null;
       setIsRecording(false);
     }
   };
