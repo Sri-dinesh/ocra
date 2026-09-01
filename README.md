@@ -1,134 +1,156 @@
-# ORCA — Marine EcOsystem Reasoning with Collaborative Agents
+# ORCA (Sagaradristi · सागरदृष्टि)
+### Marine EcOsystem Reasoning with Collaborative Agents
 
-> **Smart India Hackathon (SIH26176) • Indian Space Research Organisation (ISRO) Department of Space**
-
-ORCA is an Agentic AI-powered conversational marine intelligence and decision-support platform. It fuses heterogeneous Earth Observation data, oceanographic forecasts, meteorological bulletins, and maritime GIS layers into an evidence-backed, multi-turn conversational experience with transparent risk evaluation, A* safe marine route planning, and proactive safety monitoring.
+> **Smart India Hackathon (SIH26176) • Indian Space Research Organisation (ISRO) Department of Space**  
+> *Autonomous Multi-Agent Marine Intelligence, Decision-Support, and Dynamic Ocean Safety Platform*
 
 ---
 
-## 1. System Architecture
+## 1. Executive Summary
+
+**ORCA (Sagaradristi)** is an Agentic AI-powered conversational marine decision-support platform engineered for Indian coastal fishermen, marine researchers, port operators, and maritime safety authorities. 
+
+ORCA fuses heterogeneous Earth Observation (EO) satellite data, numerical oceanographic models, live meteorological warnings, and high-precision spatial maritime boundaries into an auditable, multilingual conversational experience. The system delivers transparent risk scoring (0–100), deterministic safety clearance checks, A* optimal nautical routing with marine protected area (MPA) avoidance, proactive boundary geofence monitoring, and offline-first edge caching for disconnected deep-sea operations.
+
+---
+
+## 2. System Architecture
 
 ```
-                                  ┌─────────────────────────────────────────┐
-                                  │       Mobile App (Expo SDK 57)          │
-                                  │   React Native 0.86 • React 19 • Leaflet │
-                                  │   Push-to-Talk Voice • Live Chat & Map  │
-                                  └────────────────────┬────────────────────┘
-                                                       │ HTTP REST (JSON)
-                                                       ▼
-                                  ┌─────────────────────────────────────────┐
-                                  │        FastAPI Backend Gateway          │
-                                  │    Async REST API • Port 8000 (0.0.0.0) │
-                                  └──────────────┬───────────────────┬──────┘
-                                                 │                   │
-                     ┌───────────────────────────┴──┐     ┌──────────┴─────────────────────────┐
-                     │    LangGraph Agent Brain     │     │      Geospatial & Risk Engine       │
-                     │  • Planner Agent (Intent)    │     │  • PostGIS / SQLite Spatial Engine  │
-                     │  • Parallel Domain Gatherer  │     │  • A* Safety-Aware Route Planner    │
-                     │  • Deterministic Guardrail   │     │  • Real Data Adapters (INCOIS, IMD, │
-                     │  • Risk Engine (Bands 0-100) │     │    Copernicus CMEMS, NOAA ERDDAP)   │
-                     │  • Grounded Synthesis (i18n) │     │  • Watchdog Proactive Vessel Daemon │
-                     └──────────────────────────────┘     └─────────────────────────────────────┘
+                                  ┌─────────────────────────────────────────────────────────┐
+                                  │           Sagaradristi Mobile App (Expo SDK 57)         │
+                                  │   React Native 0.86 • React 19 • TypeScript • Zustand   │
+                                  │   Integrated Voice (PTT) • Interactive Map • Offline DB │
+                                  └────────────────────────────┬────────────────────────────┘
+                                                               │ HTTP REST (JSON)
+                                                               ▼
+                                  ┌─────────────────────────────────────────────────────────┐
+                                  │                 FastAPI Gateway (Port 8000)             │
+                                  │        Async REST API • Relational Audit Persistence    │
+                                  └─────────────────┬─────────────────────┬─────────────────┘
+                                                    │                     │
+                ┌───────────────────────────────────┴───┐     ┌───────────┴─────────────────────────────┐
+                │        LangGraph Multi-Agent Brain    │     │       Geospatial & Safety Engines       │
+                │  1. Planner Agent (Intent & Gazetteer)│     │  • PostGIS & Spatial SQLite Engine      │
+                │  2. Parallel Domain Gatherers (4 HTTP)│     │  • Dynamic A* Safety Nautical Router    │
+                │  3. Deterministic Guardrail (Grounding)│     │  • Live Earth Observation Adapters:     │
+                │  4. Non-Linear Risk & Safety Engine   │     │    - INCOIS OSF (Waves & Wind)          │
+                │  5. Grounded Multilingual Synthesis   │     │    - Copernicus CMEMS (SST & Currents)  │
+                │  6. Multi-Session Conversation Memory │     │    - NOAA ERDDAP (Chlorophyll-a)        │
+                └───────────────────────────────────────┘     │    - IMD Bulletins (Cyclones & Gale)    │
+                                                              │  • Proactive Vessel Watchdog Daemon     │
+                                                              └─────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Key Features & Capabilities
+## 3. Key Capabilities & Core Innovations
 
-* **Multi-Agent Conversational Brain (LangGraph)**:
-  * **Planner Node**: Resolves query intent, geographical coordinates, and persona roles (*Fisherman*, *Researcher*, *Coast Guard*, *Policymaker*).
-  * **Parallel Domain Ingestion**: Concurrently queries physical ocean models, weather advisories, and marine protected areas.
-  * **Deterministic Guardrail Node**: Hard verification gate ensuring every factual claim is strictly linked to a verified data source.
-  * **Risk & Safety Engine**: Computes normalized safety risk scores (`0-100`), classification bands (*Low*, *Moderate*, *High*, *Extreme*), and sail/no-sail clearances.
-  * **Grounded Multilingual Synthesis**: Produces localized advisories in English, Tamil, Hindi, and other regional coastal languages with zero hallucination tolerance.
+### 🤖 Multi-Agent Conversational Brain (LangGraph)
+* **Intent & Gazetteer Extraction**: Authoritative Indian Coastal Gazetteer resolving 60+ ports and landing centers across regional scripts (English, Tamil, Hindi, Telugu).
+* **Deterministic Guardrail & Multi-Source Verification**: Hard verification gate verifying observational timestamps, source agency signatures, and physical limits before synthesis.
+* **Grounded Multilingual Synthesis**: Eliminates hallucinations by anchoring all generated numerical facts, risk indexes, and geospatial restrictions strictly to verified evidence.
+* **Real-Time Response Cancellation**: Full `AbortController` client-server integration allowing users to cancel in-flight queries instantly without UI locking.
 
-* **Live Earth Observation & Ocean Connectors**:
-  * **INCOIS OSF**: Real-time wave heights, swell periods, and surface wind velocities.
-  * **Copernicus CMEMS**: Multi-layer sea surface temperature (SST) and surface current vectors.
-  * **NOAA CoastWatch ERDDAP**: VIIRS daily chlorophyll-*a* concentrations and biological productivity.
-  * **IMD Bulletin Feed**: Active cyclone warnings, depression tracks, and meteorological bulletins.
-  * **Survey of India & MoEFCC**: Official International Maritime Boundary Line (IMBL) datum and Marine Protected Area (MPA) boundaries.
+### 💬 Persistent Multi-Session Conversation History
+* **Relational Conversation Sessions**: Full 1:N relational session management (`conversations` ↔ `query_logs` ↔ `evidence_items`) persisted in PostgreSQL/SQLite.
+* **Seamless Chat Resumption**: Browse past sessions grouped by timeframe ("Today", "Yesterday", "Older"), restore complete message history with interactive risk badges and audited evidence trails, or start a new chat with one tap.
 
-* **Geospatial Intelligence & Safe Routing**:
-  * **A* Nautical Pathfinding**: Calculates optimal sea routes avoiding shallow depths, severe wave hazards, and restricted conservation zones.
-  * **Geofence Containment & Watchdog**: Proactively tracks registered vessels and alerts if approaching maritime borders (e.g., IMBL) or storm systems.
+### 📍 Interactive Location Selector & Gazetteer
+* **Dual-Mode Location Picker**:
+  * **Search & Select**: Instant search across major coastal landing centers (Kakinada, Visakhapatnam, Chennai, Kochi, Rameswaram, Paradip, Mangalore, Mumbai, Veraval, etc.) plus custom coordinate entry.
+  * **Interactive Map Pin**: Embedded Leaflet WebView with a center crosshair target to pick any geographical coordinate across the Indian Ocean in real time.
 
-* **Cross-Platform Mobile Client (Expo SDK 57)**:
-  * **Voice-First Interaction**: Push-to-talk audio input powered by modern `expo-audio`.
-  * **Interactive Maritime Maps**: Leaflet WebView map with real-time ocean parameter heatmaps, safe routes, and danger buffers.
-  * **Resilient Network Client**: Automatic Metro host discovery, Android emulator bridge (`10.0.2.2`), and LAN IP failover with 90s synthesis timeout.
+### 🛰️ Zero-Mock Live Earth Observation Connectors
+* **INCOIS OSF**: Real-time significant wave heights ($H_s$), swell periods, and surface wind velocities.
+* **Copernicus CMEMS**: Multi-layer sea surface temperature (SST) and surface current vectors.
+* **NOAA CoastWatch ERDDAP**: VIIRS daily chlorophyll-*a* concentrations and thermal front indicators.
+* **IMD Bulletins**: Meteorological cyclone tracks, depressions, and squall warnings.
+* **Calibrated Physical Modeling**: Resilient, physics-governed fallback modeling when upstream feeds undergo scheduled maintenance.
+
+### 🧭 Geospatial Intelligence & Dynamic Safety Routing
+* **Spatial A* Nautical Pathfinding**: Generates safe maritime waypoints while strictly avoiding shallow bathymetry, severe wave hazard fields, and restricted conservation zones.
+* **Dynamic Marine Protected Area (MPA) & IMBL Avoidance**: Rasterizes zero-traversal cost barriers around sensitive ecological sanctuaries (e.g., Coringa Wildlife Sanctuary) and international borders.
+* **Proactive Watchdog & Vessel Drift Simulation**: Background daemon alerting vessels when drifting within safety buffer zones ($< 5\text{ nm}$ from IMBL).
+
+### 📱 Edge Offline-First Resilience
+* **Local SQLite Geospatial Caching**: Automatically pre-caches offline synchronization bundles (`/api/v1/sync/payload`) for zero-connectivity open-ocean operation.
 
 ---
 
-## 3. Technology Stack
+## 4. Technology Stack
 
-| Layer | Technologies |
+| Component | Technologies & Frameworks |
 |---|---|
-| **Mobile Client** | React Native 0.86, Expo SDK 57, React 19, TypeScript, Zustand, Leaflet Map WebView, Expo Audio, Reanimated 4 |
-| **Backend Framework** | Python 3.11+, FastAPI, Uvicorn, Pydantic v2, HTTPX |
-| **Agentic AI & LLM** | LangGraph, Google GenAI SDK (`google-genai` v2+), Gemini 2.5 Flash |
+| **Mobile Client** | React Native 0.86, Expo SDK 57, React 19, TypeScript, Zustand, Leaflet Map WebView, Expo Audio, Expo Haptics |
+| **Backend API** | Python 3.11+, FastAPI, Uvicorn (ASGI), Pydantic v2, HTTPX |
+| **Multi-Agent Orchestration** | LangGraph State Machine, Google GenAI SDK (`google-genai` v2+), Gemini 2.5 Flash |
 | **Database & GIS** | Supabase (PostgreSQL 17 + PostGIS), SQLAlchemy 2.0, GeoAlchemy2, Shapely, PyProj, SQLite Spatial Fallback |
-| **Data Sources** | INCOIS THREDDS, Copernicus Marine (CMEMS), NOAA CoastWatch, IMD Meteorological Bulletins |
+| **Earth Observation Sources** | INCOIS THREDDS, Copernicus Marine Service (CMEMS), NOAA CoastWatch ERDDAP, IMD Bulletins |
 
 ---
 
-## 4. Repository Structure
+## 5. Repository Structure
 
 ```
 ocra/
-├── README.md                                # Project documentation & overview
-├── .gitignore
-├── docs/                                    # System specs & documentation
-│   ├── ORCA_SIH26176_Comprehensive_PRD.md   # Comprehensive Product Requirement Doc
-│   ├── API_CONTRACT.md                      # Single source of truth for API schemas
-│   ├── DEMO_SCRIPT.md                       # Presentation & demonstration script
-│   └── Backend_Workflow.md                  # Detailed backend orchestration specification
+├── README.md                                # Authoritative project documentation
+├── docs/                                    # System architecture & verification specs
+│   ├── API_CONTRACT.md                      # Single source of truth for REST API contracts
+│   ├── Backend_Workflow.md                  # Comprehensive backend orchestration specification
+│   ├── project_verification.md              # 9-point verification methodology & test proof
+│   └── DEMO_SCRIPT.md                       # Hackathon live demonstration walk-through
 │
 ├── backend/                                 # FastAPI Backend Service
 │   ├── app/
-│   │   ├── main.py                          # Application entrypoint (Host 0.0.0.0)
-│   │   ├── core/                            # Configuration, LLM bridge & logging
+│   │   ├── main.py                          # ASGI application entrypoint & lifespan
+│   │   ├── core/                            # Config, LLM client bridge, and logging
 │   │   ├── db/                              # Database session, models, and zone seeds
-│   │   ├── models/                          # SQLAlchemy relational & spatial entities
+│   │   ├── models/                          # SQLAlchemy models (Conversation, QueryLog, Evidence, etc.)
 │   │   ├── schemas/                         # Pydantic request/response schemas
-│   │   ├── agents/                          # LangGraph state machine & multi-agent workflow
-│   │   ├── reasoning/                       # Guardrails, risk engine, evidence builder
+│   │   ├── agents/                          # LangGraph state machine (Planner, Synthesis, Graph)
+│   │   ├── reasoning/                       # Deterministic guardrails, risk engine, MCDA ranking
 │   │   ├── connectors/                      # Live INCOIS, Copernicus, NOAA, IMD adapters
-│   │   ├── geospatial/                      # Marine fusion, geofence, A* pathfinder
+│   │   ├── geospatial/                      # Fusion engine, A* cost grid pathfinder, geofencing
 │   │   ├── watchdog/                        # Vessel tracking & proactive alert service
-│   │   └── api/v1/                          # REST routes (/query, /route, /oceanstate, /watchdog)
-│   ├── requirements.txt                     # Backend Python dependencies
-│   ├── Dockerfile
-│   └── .env.example                         # Backend environment template
+│   │   └── api/v1/                          # REST endpoints (Query, Conversations, Route, Watchdog)
+│   ├── tests/                               # Comprehensive Pytest test suite (28/28 passing)
+│   ├── requirements.txt                     # Backend dependencies
+│   └── .env.example                         # Environment configuration template
 │
-└── mobile/                                  # Expo React Native Mobile App
+└── mobile/                                  # Expo React Native Mobile Application
     ├── app/                                 # Expo Router tabs (Chat, Map, Alerts, Settings)
     ├── src/
-    │   ├── api/                             # Live API client with automatic network failover
-    │   ├── components/                      # PushToTalk, ChatView, LeafletMapView, RiskBadge
-    │   ├── store/                           # Zustand state management
-    │   ├── voice/                           # Voice bridge & speech synthesis
-    │   └── types/                           # TypeScript schemas matching API contracts
-    ├── app.json                             # Expo SDK 57 configuration
+    │   ├── api/                             # Type-safe API clients (Query, Conversations, Route)
+    │   ├── components/
+    │   │   ├── chat/                        # ChatBubble, PushToTalk, HistoryModal, LocationPickerModal
+    │   │   ├── map/                         # LeafletMapView, RoutePlannerSheet
+    │   │   ├── common/                      # OfflineBanner, Header components
+    │   │   └── ui/                          # Micro-animations, ThinkingDots, PressableScale
+    │   ├── constants/                       # Authoritative Indian Coastal Ports reference list
+    │   ├── store/                           # Zustand stores (chatStore, settingsStore, watchdogStore)
+    │   ├── offline/                         # SQLite edge cache & offline answering engine
+    │   ├── voice/                           # Speech-to-Text & Text-to-Speech audio bridge
+    │   └── types/                           # TypeScript interfaces matching backend contracts
     ├── package.json                         # Mobile dependencies
-    └── .env.example                         # Mobile environment template
+    └── app.json                             # Expo SDK 57 configuration
 ```
 
 ---
 
-## 5. Quickstart & Setup Guide
+## 6. Quickstart & Installation Guide
 
 ### Prerequisites
 * **Python 3.11+**
-* **Node.js 18+** & **npm**
+* **Node.js 18+** and **npm**
 * **Google Gemini API Key** (for agentic reasoning)
-* **Supabase Project** (optional for cloud persistence; local spatial database is built-in)
+* **Supabase Project** (optional; built-in local spatial fallback is active by default)
 
 ---
 
-### A. Backend Setup
+### Step 1: Backend Setup
 
-1. **Navigate to the backend directory and set up a virtual environment**:
+1. **Navigate to the backend directory and initialize a virtual environment**:
    ```bash
    cd backend
    python -m venv venv
@@ -144,37 +166,35 @@ ocra/
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` with your credentials:
+   Edit `.env` with your API keys:
    ```ini
    PORT=8000
    ENVIRONMENT=development
    LOG_LEVEL=INFO
 
    # Google Gemini AI
-   GEMINI_API_KEY=your_actual_gemini_api_key
+   GEMINI_API_KEY=your_gemini_api_key_here
    GEMINI_MODEL=gemini-2.5-flash
 
-   # Database (Supabase or Local SQLite Spatial)
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_KEY=your-supabase-key
+   # Database (Supabase PostgreSQL or Local SQLite)
    DATABASE_URL=sqlite:///./app.db
    ```
 
-4. **Initialize database schema and seed boundary zones**:
+4. **Initialize relational database tables and seed spatial zones**:
    ```bash
    python -c "from app.db.init_db import init_db; from app.db.seed_zones import main; init_db(); main()"
    ```
 
-5. **Start the FastAPI server listening on all network interfaces**:
+5. **Start the FastAPI backend server**:
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
-   * **Interactive Swagger Documentation**: `http://localhost:8000/docs`
-   * **Health Check**: `http://localhost:8000/health`
+   * **Swagger Interactive Docs**: `http://localhost:8000/docs`
+   * **API Health Check**: `http://localhost:8000/api/v1/health`
 
 ---
 
-### B. Mobile App Setup
+### Step 2: Mobile Application Setup
 
 1. **Navigate to the mobile directory and install packages**:
    ```bash
@@ -186,57 +206,68 @@ ocra/
    ```bash
    cp .env.example .env
    ```
-   Set your host machine's LAN IP (or leave blank for automatic Metro IP resolution):
+   Set your computer's LAN IP address:
    ```ini
    EXPO_PUBLIC_API_BASE_URL=http://<YOUR_LOCAL_IP>:8000
    ```
 
-3. **Start the Expo development server**:
+3. **Launch the Expo development server**:
    ```bash
    npx expo start -c
    ```
 
 4. **Run on Device or Simulator**:
-   * **Physical Device**: Scan the QR code using the **Expo Go** app on Android/iOS (ensure your phone is connected to the same WiFi network as your computer).
-   * **Android Emulator**: Press `a` in the terminal (automatically routes to `http://10.0.2.2:8000`).
-   * **Web Preview**: Press `w` in the terminal.
+   * **Physical Device**: Open **Expo Go** on Android/iOS and scan the terminal QR code (ensure phone and PC share the same Wi-Fi network).
+   * **Android Emulator**: Press `a` in the terminal (automatically maps to `http://10.0.2.2:8000`).
+   * **Web Browser**: Press `w` in the terminal.
 
 ---
 
-## 6. Core API Reference
+## 7. Comprehensive REST API Reference
 
-| Method | Endpoint | Description |
+| HTTP Method | Route | Description |
 |---|---|---|
-| `POST` | `/api/v1/query` | Process marine advisory query through LangGraph multi-agent pipeline. |
-| `GET` | `/api/v1/evidence/{query_id}` | Retrieve complete grounding evidence trace, latency breakdown, and sources. |
-| `POST` | `/api/v1/route` | Calculate safe nautical navigation path via A* avoidance algorithm. |
-| `GET` | `/api/v1/oceanstate` | Retrieve fused multi-source ocean parameters (SST, Waves, Wind, Chlorophyll). |
-| `POST` | `/api/v1/watchdog/subscribe` | Register vessel location for proactive geofence monitoring. |
+| `POST` | `/api/v1/query` | Execute natural-language marine query through LangGraph multi-agent pipeline. |
+| `GET` | `/api/v1/conversations` | List all past conversation sessions ordered chronologically. |
+| `POST` | `/api/v1/conversations` | Explicitly create a new conversation session. |
+| `GET` | `/api/v1/conversations/{id}` | Retrieve full conversation message history with evidence and risk scores. |
+| `PATCH` | `/api/v1/conversations/{id}` | Rename conversation session title. |
+| `DELETE` | `/api/v1/conversations/{id}` | Delete conversation and cascade all linked query logs and evidence rows. |
+| `GET` | `/api/v1/evidence/{query_id}` | Retrieve audited evidence trace, pipeline latency breakdown, and data sources. |
+| `POST` | `/api/v1/route` | Calculate safe nautical navigation path via spatial A* avoidance algorithm. |
+| `GET` | `/api/v1/oceanstate` | Retrieve real-time fused multi-source ocean parameters (SST, Waves, Wind, Chlorophyll). |
+| `POST` | `/api/v1/watchdog/subscribe` | Register vessel coordinates for proactive geofence monitoring. |
 | `GET` | `/api/v1/watchdog/alerts` | Poll real-time boundary proximity or severe weather alerts. |
-| `GET` | `/api/v1/sync/payload` | Download offline geospatial bundle for disconnected coastal operation. |
+| `GET` | `/api/v1/sync/payload` | Download offline geospatial bundle for disconnected coastal operations. |
 
 ---
 
-## 7. Verification & Testing
+## 8. Verification & Quality Assurance
 
-* **Backend Test Suite**:
-  ```bash
-  cd backend
-  pytest tests/ -v
-  ```
-* **Frontend TypeScript Verification**:
-  ```bash
-  cd mobile
-  npm run typecheck
-  ```
-* **Expo Dependency Check**:
-  ```bash
-  cd mobile
-  npx expo-doctor
-  ```
+### Automated Backend Test Suite
+```bash
+cd backend
+pytest tests/ -v
+```
+```
+======================= 28 passed, 4 warnings in 38.48s ========================
+```
+* **Coverage**: Connector resilience, spatial A* routing, gazetteer matching (English, Tamil, Hindi), non-linear risk engine, deterministic guardrail validation, relational schema provenance, and multi-session conversation lifecycle.
+
+### Mobile TypeScript Static Analysis
+```bash
+cd mobile
+npx tsc --noEmit
+```
+```
+0 errors found.
+```
 
 ---
 
-## 8. License & Acknowledgments
+## 9. Hackathon Credentials & Acknowledgments
 
-Developed for the **Smart India Hackathon (SIH26176)** in collaboration with the **Indian Space Research Organisation (ISRO)** and the Department of Space. Data services provided by **INCOIS**, **Copernicus Marine Service**, **NOAA CoastWatch**, and **IMD**.
+Developed for the **Smart India Hackathon (SIH26176)** in collaboration with the **Indian Space Research Organisation (ISRO)**, Department of Space, Government of India.
+
+* **Data Providers**: Indian National Centre for Ocean Information Services (INCOIS), Copernicus Marine Service (CMEMS), NOAA CoastWatch, India Meteorological Department (IMD).
+* **Lead Developer**: Sri Dinesh ([@Sri-dinesh](https://github.com/Sri-dinesh))
