@@ -179,14 +179,26 @@ def rule_based_intent_classifier(query_text: str) -> Tuple[str, float]:
     """Deterministic intent classifier with high accuracy for marine terminology."""
     text = query_text.lower()
     
-    if any(k in text for k in ["safe", "sail", "fishing", "go out", "leave port", "clearance", "மீன்பிடிக்க", "மீன்பிடி", "मछली पकड़ने", "मछली पकड़", "मछली", "చేపల వేట", "చేపలు"]):
-        return "sail_clearance", 0.95
-    if any(k in text for k in ["pfz", "fish zone", "catch", "tuna", "hotspot", "density", "மீன் மண்டலம்", "मछली क्षेत्र", "చేపల మండలం"]):
+    # 1. Check for specific question types first
+    if any(k in text for k in ["avoid", "restrict", "geofenc", "boundary", "imbl", "mpa", "protected", "தவிர்க்க"]):
         return "pfz_lookup", 0.95
-    if any(k in text for k in ["route", "navigate", "path", "waypoint", "imbl avoidance", "வழித்தடம்", "मार्ग", "మార్గం"]):
-        return "route_request", 0.90
-    if any(k in text for k in ["temperature", "sst", "anomaly", "unusual", "chlorophyll", "வெப்பநிலை", "तापमान", "ఉష్ణోగ్రత"]):
-        return "anomaly_detection", 0.90
+    if any(k in text for k in ["route", "navigate", "path", "waypoint", "plot", "bearing", "வழித்தடம்", "मार्ग", "మార్గం"]):
+        return "route_request", 0.95
+    if any(k in text for k in ["productiv", "decline", "catch change", "trend", "anomaly", "unusual", "குறைவு", "कम उत्पादकता", "తగ్గుదల"]):
+        return "anomaly_detection", 0.95
+    if any(k in text for k in ["what is the wave", "what are the wave", "wind speed", "wave height", "current speed", "sst", "temperature", "அலை உயரம்", "காற்றின் வேகம்", "लहर की ऊंचाई", "हवा की गति", "అలల ఎత్తు", "గాలి వేగం"]):
+        return "general_query", 0.90
+    if any(k in text for k in ["pfz", "fish zone", "potential fishing zone", "hotspot", "tuna", "density", "மீன் மண்டலம்", "मछली क्षेत्र", "చేపల మండలం"]):
+        return "pfz_lookup", 0.95
+    if any(k in text for k in [
+        "safe to sail", "can i go", "leave port", "clearance", "go out", "sail clearance",
+        "மீன்பிடிக்க செல்லலாமா", "கடலுக்கு செல்லலாமா", "மீன்பிடிக்க", "மீன்பிடி",
+        "मछली पकड़ने जा सकते हैं", "मछली पकड़ सकते हैं", "मछली पकड़ने", "मछली पकड़", "मछली",
+        "వేటకు వెళ్లవచ్చా", "చేపల వేట", "చేపలు"
+    ]):
+        return "sail_clearance", 0.95
+    if any(k in text for k in ["fishing", "sail", "safe", "clear"]):
+        return "sail_clearance", 0.85
     
     return "general_query", 0.80
 
