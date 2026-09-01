@@ -3,7 +3,7 @@ Specification: docs/Backend_Workflow.md §7.3.8
 """
 
 import datetime
-from sqlalchemy import Column, String, Float, Boolean, DateTime
+from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.session import Base, generate_uuid
@@ -13,6 +13,12 @@ class QueryLog(Base):
     __tablename__ = "query_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=generate_uuid, index=True)
+    conversation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     raw_query = Column(String, nullable=False)
     detected_language = Column(String, nullable=False, default="en-IN")
     role = Column(String, nullable=False, default="fisherman")  # 'fisherman','researcher','coast_guard','policymaker'
@@ -34,5 +40,6 @@ class QueryLog(Base):
         index=True,
     )
 
+    conversation = relationship("Conversation", back_populates="query_logs")
     plan_steps = relationship("PlanStep", back_populates="query_log", cascade="all, delete-orphan", order_by="PlanStep.step_order")
     evidence_items = relationship("EvidenceItem", back_populates="query_log", cascade="all, delete-orphan")

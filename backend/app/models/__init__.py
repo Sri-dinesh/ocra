@@ -9,6 +9,7 @@ from app.models.hazard import Hazard
 from app.models.vessel import Vessel
 from app.models.watchdog_subscription import WatchdogSubscription
 from app.models.watchdog_alert import WatchdogAlert
+from app.models.conversation import Conversation
 from app.models.query_log import QueryLog
 from app.models.plan_step import PlanStep
 from app.models.evidence_item import EvidenceItem
@@ -21,6 +22,7 @@ __all__ = [
     "Vessel",
     "WatchdogSubscription",
     "WatchdogAlert",
+    "Conversation",
     "QueryLog",
     "PlanStep",
     "EvidenceItem",

@@ -11,6 +11,7 @@ export interface LocationHint {
 
 export interface QueryRequest {
   text: string;
+  conversation_id?: string;
   location_hint?: LocationHint;
   role?: 'fisherman' | 'researcher' | 'coast_guard' | 'policymaker';
   language?: string;
@@ -25,6 +26,7 @@ export interface EvidenceItem {
 
 export interface QueryResponse {
   query_id: string;
+  conversation_id?: string;
   intent: 'sail_clearance' | 'pfz_lookup' | 'anomaly_detection' | 'route_request' | 'general_query' | 'clarification_needed' | string;
   recommendation: string;
   risk_score?: number;
@@ -34,6 +36,49 @@ export interface QueryResponse {
   caveats: string[];
   map_layers: string[];
   language: string;
+}
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  role: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  last_query_preview?: string;
+  last_risk_band?: 'low' | 'moderate' | 'high' | 'extreme' | string;
+  last_risk_score?: number;
+}
+
+export interface ConversationMessagePayload {
+  id: string;
+  role: 'user' | 'orca';
+  text: string;
+  timestamp: string;
+  responsePayload?: QueryResponse;
+  locationHint?: LocationHint;
+  kind?: 'normal' | 'thinking' | 'offline' | 'error' | 'clarification' | string;
+}
+
+export interface ConversationDetailResponse {
+  id: string;
+  title: string;
+  role: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+  messages: ConversationMessagePayload[];
+}
+
+export interface CreateConversationRequest {
+  title?: string;
+  role?: string;
+  language?: string;
+}
+
+export interface UpdateConversationRequest {
+  title: string;
 }
 
 export interface EvidenceDetailResponse {

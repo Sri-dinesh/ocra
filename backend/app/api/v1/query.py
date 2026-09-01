@@ -2,6 +2,7 @@
 Specification: docs/Backend_Workflow.md §3, §7.3.8-10
 Features:
 - LangGraph decision execution with guardrail validation & risk scoring.
+- Persistent multi-session conversation tracking linked to relational conversations table.
 - High-performance in-memory LRU trace store for rapid audit inspection.
 - Relational database persistence into query_logs, plan_steps, and evidence_items with resilient non-blocking fallback.
 Owner: SRIDINESH (Lead)
@@ -18,7 +19,7 @@ from app.agents.state import AgentState, LocationContext
 from app.reasoning.evidence import build_evidence_trace
 from app.core.logging import logger
 from app.db.session import SessionLocal
-from app.models import QueryLog, PlanStep, EvidenceItem as EvidenceItemModel, Source
+from app.models import Conversation, QueryLog, PlanStep, EvidenceItem as EvidenceItemModel, Source
 
 router = APIRouter(tags=["Query"])
 
@@ -34,16 +35,80 @@ def save_trace_record(query_id: str, record: Dict[str, Any]):
     QUERY_TRACE_STORE[query_id] = record
 
 
-def persist_relational_query_trace(query_id: str, state: AgentState, evidence_items: list):
+def ensure_conversation_session(
+    conversation_id_str: Optional[str],
+    raw_query: str,
+    role: str,
+    language: str,
+) -> str:
+    """Resolve existing conversation or create a new conversation session."""
+    db = SessionLocal()
+    try:
+        conv_uuid = None
+        if conversation_id_str:
+            try:
+                conv_uuid = uuid.UUID(conversation_id_str)
+            except ValueError:
+                conv_uuid = None
+
+        conv = None
+        if conv_uuid:
+            conv = db.query(Conversation).filter(Conversation.id == conv_uuid).first()
+
+        if not conv:
+            # Generate clean title from initial query
+            cleaned_title = raw_query.strip().replace("\n", " ")
+            if len(cleaned_title) > 50:
+                cleaned_title = cleaned_title[:47] + "..."
+            
+            conv = Conversation(
+                id=conv_uuid or uuid.uuid4(),
+                title=cleaned_title or "Marine Advisory Query",
+                role=role or "fisherman",
+                language=language or "en-IN",
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+            db.add(conv)
+            db.commit()
+            db.refresh(conv)
+            logger.info(f"[DB] Initialized conversation [{conv.id}]: '{conv.title}'")
+        else:
+            conv.updated_at = datetime.now(timezone.utc)
+            db.commit()
+
+        return str(conv.id)
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"[DB] Error ensuring conversation session: {e}")
+        return conversation_id_str or str(uuid.uuid4())
+    finally:
+        db.close()
+
+
+def persist_relational_query_trace(
+    query_id: str,
+    conversation_id: str,
+    state: AgentState,
+    evidence_items: list,
+):
     """Persist query trace, plan steps, and evidence items relationally into Postgres (§7.3.8-10)."""
     db = SessionLocal()
     try:
         loc = state.get("location") or {}
         time_win = state.get("time_window") or {}
 
+        conv_uuid = None
+        if conversation_id:
+            try:
+                conv_uuid = uuid.UUID(conversation_id)
+            except ValueError:
+                conv_uuid = None
+
         # 1. Query Log Header
         query_log = QueryLog(
             id=uuid.UUID(query_id) if isinstance(query_id, str) else query_id,
+            conversation_id=conv_uuid,
             raw_query=state.get("raw_query", ""),
             detected_language=state.get("language", "en-IN"),
             role=state.get("role", "fisherman"),
@@ -79,7 +144,6 @@ def persist_relational_query_trace(query_id: str, state: AgentState, evidence_it
         # 3. Evidence Items Relational Rows (§7.3.10)
         source_cache = {s.code: s.id for s in db.query(Source).all()}
         for item in evidence_items:
-            # Map source name to source code
             src_str = item.source.lower()
             src_code = "incois_osf" if "incois" in src_str else ("copernicus_cmems" if "copernicus" in src_str else ("noaa_erddap" if "noaa" in src_str else ("imd_bulletin" if "imd" in src_str else None)))
             src_id = source_cache.get(src_code)
@@ -95,7 +159,7 @@ def persist_relational_query_trace(query_id: str, state: AgentState, evidence_it
             db.add(ev_row)
 
         db.commit()
-        logger.info(f"[DB] Relational query trace [{query_id}] persisted with {len(nodes_exec)} steps & {len(evidence_items)} evidence rows.")
+        logger.info(f"[DB] Relational query trace [{query_id}] persisted in conversation [{conv_uuid}] with {len(nodes_exec)} steps & {len(evidence_items)} evidence rows.")
     except Exception as e:
         db.rollback()
         logger.warning(f"[DB] Non-blocking trace persistence skipped for [{query_id}]: {e}")
@@ -118,7 +182,14 @@ async def query_marine_intelligence(req: QueryRequest) -> QueryResponse:
         )
 
     query_id = str(uuid.uuid4())
-    logger.info(f"[API] Query [{query_id}] received: '{req.text}' (role={req.role}, lang={req.language})")
+    conversation_id = ensure_conversation_session(
+        conversation_id_str=req.conversation_id,
+        raw_query=req.text.strip(),
+        role=req.role or "fisherman",
+        language=req.language or "en-IN",
+    )
+
+    logger.info(f"[API] Query [{query_id}] received in conversation [{conversation_id}]: '{req.text}' (role={req.role}, lang={req.language})")
 
     loc_context: Optional[LocationContext] = None
     if req.location_hint:
@@ -153,6 +224,7 @@ async def query_marine_intelligence(req: QueryRequest) -> QueryResponse:
     # Save to audit trail in-memory cache
     audit_record = {
         "query_id": query_id,
+        "conversation_id": conversation_id,
         "raw_query": req.text.strip(),
         "plan": {
             "intent": final_state.get("intent", "general_query"),
@@ -172,10 +244,11 @@ async def query_marine_intelligence(req: QueryRequest) -> QueryResponse:
     save_trace_record(query_id, audit_record)
 
     # Persist relationally to Postgres (§7.3.8-10, §6)
-    persist_relational_query_trace(query_id, final_state, evidence_items)
+    persist_relational_query_trace(query_id, conversation_id, final_state, evidence_items)
 
     return QueryResponse(
         query_id=query_id,
+        conversation_id=conversation_id,
         intent=final_state.get("intent", "general_query"),
         recommendation=final_state.get(
             "final_response",

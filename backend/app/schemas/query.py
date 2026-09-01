@@ -14,6 +14,9 @@ class LocationHint(BaseModel):
 
 class QueryRequest(BaseModel):
     text: str = Field(..., description="User query text or speech transcript")
+    conversation_id: Optional[str] = Field(
+        default=None, description="Optional conversation session UUID"
+    )
     location_hint: Optional[LocationHint] = Field(
         default=None, description="Location context if known"
     )
@@ -34,6 +37,7 @@ class EvidenceItem(BaseModel):
 
 class QueryResponse(BaseModel):
     query_id: str
+    conversation_id: Optional[str] = None
     intent: str
     recommendation: str
     risk_score: Optional[float] = None
