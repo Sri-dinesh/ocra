@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { buildLeafletHtml } from './leafletHtml';
@@ -18,6 +18,9 @@ export interface LeafletMapHandle {
   setPfz(points: LatLonPoint[]): void;
   setGeofences(imbl?: LatLonPoint[], mpa?: LatLonPoint[]): void;
   setLayers(active: string[]): void;
+  zoomIn(): void;
+  zoomOut(): void;
+  pan(direction: 'north' | 'south' | 'east' | 'west'): void;
 }
 
 interface Props {
@@ -38,12 +41,18 @@ const buildGeo = (pts?: LatLonPoint[]) =>
 export const LeafletMapView = forwardRef<LeafletMapHandle, Props>(
   ({ centerLat = 16.9891, centerLon = 82.2475, zoom = 8, onMapMoved, onReady }, ref) => {
     const webViewRef = useRef<WebView>(null);
+    const initialHtml = useMemo(
+      () => buildLeafletHtml({ lat: centerLat, lon: centerLon, zoom }),
+      [] // Keep source stable so dragging map never reloads WebView
+    );
 
     useImperativeHandle(ref, () => ({
       setCenter(lat, lon, z) {
+        webViewRef.current?.injectJavaScript(`if (window.map) { window.map.setView([${lat}, ${lon}], ${z || 'window.map.getZoom()'}); } true;`);
         webViewRef.current?.postMessage(JSON.stringify({ type: 'SET_CENTER', lat, lon, zoom: z }));
       },
       focus(lat, lon, z) {
+        webViewRef.current?.injectJavaScript(`if (window.map) { window.map.flyTo([${lat}, ${lon}], ${z || 9}, { duration: 1.0 }); } true;`);
         webViewRef.current?.postMessage(JSON.stringify({ type: 'FOCUS', lat, lon, zoom: z || 9 }));
       },
       drawRoute(style) {
@@ -58,6 +67,7 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, Props>(
         webViewRef.current?.postMessage(JSON.stringify({ type: 'DRAW_ROUTE' }));
       },
       setVessel(lat, lon) {
+        webViewRef.current?.injectJavaScript(`if (typeof setVessel === 'function') { setVessel(${lat}, ${lon}); } true;`);
         webViewRef.current?.postMessage(JSON.stringify({ type: 'SET_VESSEL', lat, lon }));
       },
       setPfz(points) {
@@ -70,6 +80,21 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, Props>(
       },
       setLayers(active) {
         webViewRef.current?.postMessage(JSON.stringify({ type: 'SET_LAYERS', active }));
+      },
+      zoomIn() {
+        webViewRef.current?.injectJavaScript(`if (window.map) { window.map.zoomIn(1); } true;`);
+        webViewRef.current?.postMessage(JSON.stringify({ type: 'ZOOM_IN' }));
+      },
+      zoomOut() {
+        webViewRef.current?.injectJavaScript(`if (window.map) { window.map.zoomOut(1); } true;`);
+        webViewRef.current?.postMessage(JSON.stringify({ type: 'ZOOM_OUT' }));
+      },
+      pan(direction) {
+        const step = 200;
+        const dx = direction === 'east' ? step : direction === 'west' ? -step : 0;
+        const dy = direction === 'south' ? step : direction === 'north' ? -step : 0;
+        webViewRef.current?.injectJavaScript(`if (window.map) { window.map.panBy([${dx}, ${dy}], { animate: true }); } true;`);
+        webViewRef.current?.postMessage(JSON.stringify({ type: 'PAN', direction }));
       },
     }));
 
@@ -92,7 +117,7 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, Props>(
           javaScriptEnabled
           domStorageEnabled
           allowsBackForwardNavigationGestures={false}
-          source={{ html: buildLeafletHtml({ lat: centerLat, lon: centerLon, zoom }) }}
+          source={{ html: initialHtml }}
           style={styles.webview}
           onMessage={handleMessage}
           onLoadEnd={() => onReady?.()}

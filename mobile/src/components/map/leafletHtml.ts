@@ -157,22 +157,38 @@ function setLayers(active) {
   });
 }
 
+// Expose map globally on window for direct JS injection
+window.map = map;
+
 // ---- Bridge ---------------------------------------------------------------
-window.addEventListener('message', function (event) {
+function handleMessage(event) {
   try {
-    var d = JSON.parse(event.data);
+    var raw = event.data;
+    var d = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!d || !d.type) return;
     switch (d.type) {
       case 'SET_CENTER': map.setView([d.lat, d.lon], d.zoom || map.getZoom()); break;
-      case 'FOCUS': map.flyTo([d.lat, d.lon], d.zoom || 9, { duration: 1.1 }); break;
+      case 'FOCUS': map.flyTo([d.lat, d.lon], d.zoom || 9, { duration: 1.0 }); break;
       case 'DRAW_ROUTE': drawRoute(d && d.route ? d.route : null); break;
       case 'SET_PFZ': renderPfz(d.points); break;
       case 'SET_GEOFENCES': renderGeofences(d.imbl, d.mpa); break;
       case 'SET_VESSEL': setVessel(d.lat, d.lon); break;
       case 'SET_LAYERS': setLayers(d.active); break;
+      case 'ZOOM_IN': map.zoomIn(1); break;
+      case 'ZOOM_OUT': map.zoomOut(1); break;
+      case 'PAN':
+        var panStep = 200;
+        if (d.direction === 'north') map.panBy([0, -panStep], { animate: true });
+        else if (d.direction === 'south') map.panBy([0, panStep], { animate: true });
+        else if (d.direction === 'east') map.panBy([panStep, 0], { animate: true });
+        else if (d.direction === 'west') map.panBy([-panStep, 0], { animate: true });
+        break;
     }
-  } catch (e) { /* ignore malformed */ }
-});
+  } catch (e) { /* ignore */ }
+}
+
+window.addEventListener('message', handleMessage);
+document.addEventListener('message', handleMessage);
 
 function send(obj) {
   if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(JSON.stringify(obj)); }
@@ -185,7 +201,7 @@ map.on('moveend', function () {
 
 renderGeofences(null, null);
 renderPfz(null, null);
-L.marker([${lat}, ${lon}]).addTo(map).bindPopup('<b>Kakinada Departure Point</b>');
+L.marker([${lat}, ${lon}]).addTo(map).bindPopup('<b>Departure Harbor Point</b>');
 </script>
 </body>
 </html>`;
