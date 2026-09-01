@@ -24,13 +24,17 @@ interface Props {
 
 export function LocationPickerModal({ visible, onClose }: Props) {
   const { lastLocationHint, setLastLocationHint } = useChatStore();
-  const [activeTab, setActiveTab] = useState<'search' | 'map'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'coords' | 'map'>('search');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Custom coordinates input state
   const [customName, setCustomName] = useState('');
-  const [customLat, setCustomLat] = useState('');
-  const [customLon, setCustomLon] = useState('');
+  const [customLat, setCustomLat] = useState(
+    lastLocationHint?.lat ? String(lastLocationHint.lat) : '16.9891'
+  );
+  const [customLon, setCustomLon] = useState(
+    lastLocationHint?.lon ? String(lastLocationHint.lon) : '82.2475'
+  );
 
   // Map pin state
   const [mapPoint, setMapPoint] = useState<{ lat: number; lon: number }>({
@@ -59,12 +63,12 @@ export function LocationPickerModal({ visible, onClose }: Props) {
   const handleApplyCustomCoords = () => {
     const lat = parseFloat(customLat);
     const lon = parseFloat(customLon);
-    if (isNaN(lat) || isNaN(lon)) return;
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) return;
 
     const customLoc: LocationHint = {
-      lat,
-      lon,
-      name: customName.trim() || `Custom GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`,
+      lat: parseFloat(lat.toFixed(4)),
+      lon: parseFloat(lon.toFixed(4)),
+      name: customName.trim() || `GPS (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E)`,
     };
     setLastLocationHint(customLoc);
     onClose();
@@ -74,7 +78,7 @@ export function LocationPickerModal({ visible, onClose }: Props) {
     const mapLoc: LocationHint = {
       lat: parseFloat(mapPoint.lat.toFixed(4)),
       lon: parseFloat(mapPoint.lon.toFixed(4)),
-      name: `Selected Marine Sector (${mapPoint.lat.toFixed(2)}°N, ${mapPoint.lon.toFixed(2)}°E)`,
+      name: `Selected Sector (${mapPoint.lat.toFixed(2)}°N, ${mapPoint.lon.toFixed(2)}°E)`,
     };
     setLastLocationHint(mapLoc);
     onClose();
@@ -155,7 +159,16 @@ export function LocationPickerModal({ visible, onClose }: Props) {
               onPress={() => setActiveTab('search')}
             >
               <Text style={[styles.tabText, activeTab === 'search' && styles.tabTextActive]}>
-                🔍 Search Coastal Ports
+                🔍 Ports
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === 'coords' && styles.tabBtnActive]}
+              onPress={() => setActiveTab('coords')}
+            >
+              <Text style={[styles.tabText, activeTab === 'coords' && styles.tabTextActive]}>
+                🎯 Enter Lat/Lon
               </Text>
             </TouchableOpacity>
 
@@ -164,12 +177,69 @@ export function LocationPickerModal({ visible, onClose }: Props) {
               onPress={() => setActiveTab('map')}
             >
               <Text style={[styles.tabText, activeTab === 'map' && styles.tabTextActive]}>
-                🗺️ Pick from Map
+                🗺️ Pick Map
               </Text>
             </TouchableOpacity>
           </View>
 
-          {activeTab === 'search' ? (
+          {activeTab === 'coords' ? (
+            <View style={styles.coordsTabContent}>
+              <Text style={styles.coordsSectionTitle}>Direct Latitude & Longitude Entry</Text>
+              <Text style={styles.coordsSectionSub}>
+                Specify exact GPS coordinates for offshore sectors, trawler drift positions, or survey points.
+              </Text>
+
+              <View style={styles.coordsForm}>
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>LOCATION NAME / TAG (OPTIONAL)</Text>
+                  <TextInput
+                    style={styles.customInput}
+                    placeholder="e.g. Tuna Thermal Edge, Drift Point Bravo"
+                    placeholderTextColor={colors.textFaint}
+                    value={customName}
+                    onChangeText={setCustomName}
+                  />
+                </View>
+
+                <View style={styles.coordsRow}>
+                  <View style={[styles.formGroup, { flex: 1 }]}>
+                    <Text style={styles.formLabel}>LATITUDE (°N)</Text>
+                    <TextInput
+                      style={[styles.customInput, styles.coordField]}
+                      placeholder="e.g. 16.9891"
+                      placeholderTextColor={colors.textFaint}
+                      value={customLat}
+                      onChangeText={setCustomLat}
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  <View style={[styles.formGroup, { flex: 1 }]}>
+                    <Text style={styles.formLabel}>LONGITUDE (°E)</Text>
+                    <TextInput
+                      style={[styles.customInput, styles.coordField]}
+                      placeholder="e.g. 82.2475"
+                      placeholderTextColor={colors.textFaint}
+                      value={customLon}
+                      onChangeText={setCustomLon}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+
+                <PressableScale
+                  style={[
+                    styles.applyCoordsBtn,
+                    (!customLat.trim() || !customLon.trim()) && styles.applyCoordsBtnDisabled,
+                  ]}
+                  disabled={!customLat.trim() || !customLon.trim()}
+                  onPress={handleApplyCustomCoords}
+                >
+                  <Text style={styles.applyCoordsText}>⚓ Set as Operating GPS Location</Text>
+                </PressableScale>
+              </View>
+            </View>
+          ) : activeTab === 'search' ? (
             <View style={styles.tabContent}>
               {/* Search Bar */}
               <View style={styles.searchBar}>
@@ -308,53 +378,57 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   headerTitle: {
-    ...typography.section,
+    ...typography.title,
     color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '700',
   },
   headerCurrentLoc: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.aqua,
     fontWeight: '600',
-    marginTop: 1,
+    marginTop: 2,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.card,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeBtnText: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: radius.pill,
-    padding: 3,
-    marginBottom: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: radius.xl,
+    padding: 6,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
   },
   tabBtnActive: {
-    backgroundColor: colors.accentDeep,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    ...shadow.float,
   },
   tabText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textFaint,
   },
   tabTextActive: {
     color: colors.text,
+    fontWeight: '700',
   },
   tabContent: {
     flex: 1,
@@ -362,42 +436,42 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
     borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.sm,
-    gap: spacing.xs,
+    borderColor: 'transparent',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   searchIcon: {
-    fontSize: 14,
+    fontSize: 16,
   },
   searchInput: {
     flex: 1,
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
   },
   portsList: {
     paddingBottom: spacing.xxl,
   },
   portItemWrapper: {
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
   },
   portCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: 'transparent',
   },
   portCardSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.cardSelected,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    backgroundColor: 'rgba(56, 189, 248, 0.05)',
   },
   portInfo: {
     flex: 1,
@@ -405,14 +479,14 @@ const styles = StyleSheet.create({
   portHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: 2,
+    gap: spacing.sm,
+    marginBottom: 6,
   },
   portPinIcon: {
-    fontSize: 14,
+    fontSize: 16,
   },
   portName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
   },
@@ -420,73 +494,100 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   portSub: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textMuted,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   portCoords: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.aqua,
     fontWeight: '600',
   },
   activeBadge: {
-    backgroundColor: colors.accentDeep,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   activeBadgeText: {
     fontSize: 10,
-    fontWeight: '900',
-    color: colors.text,
+    fontWeight: '800',
+    color: colors.accent,
     letterSpacing: 0.5,
   },
+  coordsTabContent: {
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
+  },
+  coordsSectionTitle: {
+    ...typography.title,
+    color: colors.text,
+    fontSize: 18,
+  },
+  coordsSectionSub: {
+    fontSize: 14,
+    color: colors.textMuted,
+    lineHeight: 20,
+  },
+  coordsForm: {
+    marginTop: spacing.sm,
+    gap: spacing.md,
+  },
+  formGroup: {
+    gap: 6,
+  },
+  formLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textFaint,
+    letterSpacing: 1,
+  },
   customCoordsBox: {
-    marginTop: spacing.md,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: radius.md,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   customCoordsTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   customInput: {
-    backgroundColor: colors.card,
-    borderRadius: radius.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    paddingVertical: 12,
     color: colors.text,
-    fontSize: 13,
+    fontSize: 15,
     borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.xs,
+    borderColor: 'transparent',
+    marginBottom: spacing.sm,
   },
   coordsRow: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   coordField: {
     flex: 1,
   },
   applyCoordsBtn: {
     backgroundColor: colors.accentDeep,
-    borderRadius: radius.sm,
-    paddingVertical: 9,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   applyCoordsBtnDisabled: {
-    backgroundColor: colors.borderSubtle,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     opacity: 0.5,
   },
   applyCoordsText: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
   },
   mapTabContent: {
