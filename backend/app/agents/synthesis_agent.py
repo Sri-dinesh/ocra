@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from app.agents.state import AgentState
 from app.core.llm import llm_client
 from app.core.logging import logger
+from app.reasoning.context_engine import ContextEngine
 
 SYNTHESIS_SYSTEM_PROMPT = """You are the Marine Synthesis component of ORCA (Sagaradristi).
 Your mission is to directly, accurately, and naturally answer the user's specific marine question based STRICTLY on the provided real oceanographic datum, spatial geofence boundaries, and deterministic risk score.
@@ -315,10 +316,13 @@ async def synthesize(state: AgentState) -> AgentState:
             }
             for i, e in enumerate(evidence_items)
         ]
+        history_str = ContextEngine.format_history_for_prompt(state.get("conversation_history", []))
         gis = state.get("gis_data") or {}
         prompt = f"""
 query: "{state.get('raw_query')}"
 intent: "{state.get('intent')}"
+conversation_context:
+{history_str}
 sail_clearance: {sail_allowed}
 risk_score: {risk_score} (Scale: 0 to 100)
 risk_band: "{risk_band}"

@@ -141,9 +141,12 @@ class AgentState(TypedDict, total=False):
     # Request Identifiers
     query_id: str
     session_id: Optional[str]
+    conversation_id: Optional[str]
     raw_query: str
     role: str  # fisherman, researcher, coast_guard, policymaker
     language: str  # en-IN, ta-IN, hi-IN, te-IN
+    conversation_history: List[Dict[str, Any]]
+    inherited_context: Optional[Dict[str, Any]]
     
     # Planner Outputs
     intent: str  # sail_clearance, pfz_lookup, anomaly_detection, route_request, general_query, clarification_needed

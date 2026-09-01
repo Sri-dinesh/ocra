@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # AI
     GEMINI_API_KEY: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
-    GEMINI_MODEL: str = "gemini-3.5-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # Database
     SUPABASE_URL: Optional[str] = None

@@ -6,6 +6,7 @@ import logging
 from sqlalchemy import text
 from app.db.session import engine, Base, SessionLocal
 from app.models import (
+    Conversation,
     Source,
     OceanState,
     Zone,

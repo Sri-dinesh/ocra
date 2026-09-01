@@ -21,6 +21,9 @@ from app.core.logging import logger
 from app.db.session import SessionLocal
 from app.models import Conversation, QueryLog, PlanStep, EvidenceItem as EvidenceItemModel, Source
 
+from app.agents.planner_agent import detect_indic_language
+from app.reasoning.context_engine import ContextEngine
+
 router = APIRouter(tags=["Query"])
 
 # High-performance in-memory LRU trace store (bounded capacity for production stability)
@@ -182,14 +185,15 @@ async def query_marine_intelligence(req: QueryRequest) -> QueryResponse:
         )
 
     query_id = str(uuid.uuid4())
+    resolved_lang = detect_indic_language(req.text.strip(), fallback=req.language or "en-IN")
     conversation_id = ensure_conversation_session(
         conversation_id_str=req.conversation_id,
         raw_query=req.text.strip(),
         role=req.role or "fisherman",
-        language=req.language or "en-IN",
+        language=resolved_lang,
     )
 
-    logger.info(f"[API] Query [{query_id}] received in conversation [{conversation_id}]: '{req.text}' (role={req.role}, lang={req.language})")
+    logger.info(f"[API] Query [{query_id}] received in conversation [{conversation_id}]: '{req.text}' (role={req.role}, lang={resolved_lang})")
 
     loc_context: Optional[LocationContext] = None
     if req.location_hint:
@@ -201,12 +205,16 @@ async def query_marine_intelligence(req: QueryRequest) -> QueryResponse:
             "confidence": 1.0,
         }
 
+    conversation_history = ContextEngine.get_recent_dialogue(conversation_id, limit=5)
+
     initial_state: AgentState = {
         "query_id": query_id,
+        "conversation_id": conversation_id,
         "raw_query": req.text.strip(),
         "role": req.role or "fisherman",
-        "language": req.language or "en-IN",
+        "language": resolved_lang,
         "location": loc_context,
+        "conversation_history": conversation_history,
     }
 
     try:

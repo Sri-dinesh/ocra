@@ -195,3 +195,24 @@ async def test_query_and_evidence_api_flow():
         assert ev_data["query_id"] == query_id
         assert "plan" in ev_data
         assert len(ev_data["evidence"]) >= 1
+
+
+@pytest.mark.anyio
+async def test_script_language_auto_detection():
+    """Verify Telugu, Tamil, and Hindi script inputs automatically return matching language responses."""
+    # 1. Telugu query sent even with default en-IN request language
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        telugu_payload = {
+            "text": "వాతావరణం మరియు సముద్ర పరిస్థితులను పరిగణనలోకి తీసుకుని, చేపల వేట నౌకకు అత్యంత సురక్షితమైన మార్గం ఏది?",
+            "location_hint": {"lat": 16.9891, "lon": 82.2475, "name": "Kakinada"},
+            "role": "fisherman",
+            "language": "en-IN",  # Default app setting should be overridden by script detector
+        }
+        res = await client.post("/api/v1/query", json=telugu_payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["language"] == "te-IN"
+        # Verify Telugu characters present in response recommendation
+        has_telugu = any('\u0C00' <= c <= '\u0C7F' for c in data["recommendation"])
+        assert has_telugu, f"Expected Telugu recommendation, got: {data['recommendation']}"

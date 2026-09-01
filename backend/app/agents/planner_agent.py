@@ -203,21 +203,57 @@ def rule_based_intent_classifier(query_text: str) -> Tuple[str, float]:
     return "general_query", 0.80
 
 
+def detect_indic_language(text: str, fallback: str = "en-IN") -> str:
+    """Detects Indic regional script (Telugu, Tamil, Hindi) from character unicode ranges."""
+    if not text:
+        return fallback
+
+    telugu_count = sum(1 for c in text if '\u0C00' <= c <= '\u0C7F')
+    tamil_count = sum(1 for c in text if '\u0B80' <= c <= '\u0BFF')
+    hindi_count = sum(1 for c in text if '\u0900' <= c <= '\u097F')
+
+    counts = [
+        (telugu_count, "te-IN"),
+        (tamil_count, "ta-IN"),
+        (hindi_count, "hi-IN"),
+    ]
+    counts.sort(key=lambda x: x[0], reverse=True)
+
+    if counts[0][0] > 0:
+        return counts[0][1]
+
+    return fallback
+
+
+from app.reasoning.context_engine import ContextEngine
+
+
 async def plan(
     raw_query: str,
     location_hint: Optional[Dict[str, Any]] = None,
     role: str = "fisherman",
     language: str = "en-IN",
+    conversation_history: Optional[List[Dict[str, Any]]] = None,
 ) -> AgentState:
     """Execute production entity extraction, gazetteer matching, and sub-agent planning."""
-    logger.info(f"[Planner Agent] Processing query: '{raw_query}' (role={role}, lang={language})")
+    # Auto-detect language from script if Indic characters are present
+    resolved_language = detect_indic_language(raw_query, fallback=language)
+    logger.info(f"[Planner Agent] Processing query: '{raw_query}' (role={role}, lang={resolved_language})")
+
+    # 0. Resolve Dialogue Coreferences from Prior Turns
+    coref = ContextEngine.resolve_coreferences(
+        raw_query=raw_query,
+        history=conversation_history or [],
+        current_location=location_hint,
+    )
+    resolved_loc_hint = coref.get("inherited_location") or location_hint
 
     # 1. Resolve Location
-    if location_hint and "lat" in location_hint and "lon" in location_hint:
+    if resolved_loc_hint and "lat" in resolved_loc_hint and "lon" in resolved_loc_hint:
         loc_context: Optional[LocationContext] = {
-            "lat": float(location_hint["lat"]),
-            "lon": float(location_hint["lon"]),
-            "name": location_hint.get("name") or "Operational GPS Location",
+            "lat": float(resolved_loc_hint["lat"]),
+            "lon": float(resolved_loc_hint["lon"]),
+            "name": resolved_loc_hint.get("name") or "Operational GPS Location",
             "state_or_region": "Coastal Waters",
             "confidence": 1.0,
         }
@@ -237,19 +273,21 @@ async def plan(
 
     # 2. Ambiguity Short-Circuit Check
     words = raw_query.strip().split()
-    if loc_context is None and len(words) <= 4:
+    if loc_context is None and len(words) <= 4 and not coref.get("is_follow_up"):
         clarification_msg = "Could you specify which coastal harbor or port you are departing from?"
-        if language == "ta-IN":
+        if resolved_language == "ta-IN":
             clarification_msg = "நீங்கள் எந்த துறைமுகம் அல்லது கடலோர பகுதியிலிருந்து செல்ல விரும்புகிறீர்கள்?"
-        elif language == "hi-IN":
+        elif resolved_language == "hi-IN":
             clarification_msg = "कृपया बताएं कि आप किस बंदरगाह या तटीय क्षेत्र से प्रस्थान करना चाहते हैं?"
-        elif language == "te-IN":
+        elif resolved_language == "te-IN":
             clarification_msg = "మీరు ఏ తీరప్రాంతం లేదా ఓడరేవు నుండి ప్రయాణించాలనుకుంటున్నారో దయచేసి పేర్కొనగలరా?"
 
         return {
             "raw_query": raw_query,
             "role": role,
-            "language": language,
+            "language": resolved_language,
+            "conversation_history": conversation_history or [],
+            "inherited_context": coref,
             "intent": "clarification_needed",
             "intent_confidence": 1.0,
             "location": None,
@@ -279,7 +317,8 @@ async def plan(
     
     if llm_client.is_configured():
         now_iso = datetime.now(timezone.utc).isoformat()
-        user_msg = f"current_datetime: {now_iso}\nrole: {role}\nlanguage: {language}\nlocation_hint: {loc_context}\nquery: \"{raw_query}\""
+        history_str = ContextEngine.format_history_for_prompt(conversation_history or [])
+        user_msg = f"current_datetime: {now_iso}\nrole: {role}\nlanguage: {resolved_language}\nlocation_hint: {loc_context}\n{history_str}\nquery: \"{raw_query}\""
         llm_res = await llm_client.generate_structured(
             prompt=user_msg,
             schema=PlanExtractionSchema,
@@ -294,7 +333,9 @@ async def plan(
     state: AgentState = {
         "raw_query": raw_query,
         "role": role,
-        "language": language,
+        "language": resolved_language,
+        "conversation_history": conversation_history or [],
+        "inherited_context": coref,
         "intent": intent,
         "intent_confidence": intent_conf,
         "location": loc_context,
@@ -306,5 +347,5 @@ async def plan(
         "confidence": "high",
     }
 
-    logger.info(f"[Planner Agent] Resolved intent='{intent}' ({intent_conf:.2f}), location='{loc_context['name']}' ({loc_context['lat']}, {loc_context['lon']})")
+    logger.info(f"[Planner Agent] Resolved intent='{intent}' ({intent_conf:.2f}), location='{loc_context['name']}' ({loc_context['lat']}, {loc_context['lon']}), lang='{resolved_language}'")
     return state

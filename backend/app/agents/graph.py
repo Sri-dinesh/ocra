@@ -120,6 +120,7 @@ async def node_planner(state: AgentState) -> AgentState:
         location_hint=state.get("location"),
         role=state.get("role", "fisherman"),
         language=state.get("language", "en-IN"),
+        conversation_history=state.get("conversation_history"),
     )
     return {**state, **planned}
 
