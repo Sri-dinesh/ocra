@@ -26,23 +26,40 @@ import { answerFromCache } from '../../src/offline/offlineAnswers';
 import { sttService, speakReply } from '../../src/voice/speechBridge';
 import { colors, spacing, radius, typography, brand, shadow } from '../../src/theme/theme';
 import { LocationHint } from '../../src/types/contract';
+import { PageInfoModal } from '../../src/components/ui/PageInfoModal';
+import {
+  QUERY_CATEGORIES,
+  QUERY_PRESETS,
+  QUICK_FOLLOW_UPS,
+  QueryPresetItem,
+} from '../../src/constants/presets';
+
+function detectScriptLanguage(text: string, fallback: string): string {
+  let telugu = 0;
+  let tamil = 0;
+  let hindi = 0;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code >= 0x0c00 && code <= 0x0c7f) telugu++;
+    else if (code >= 0x0b80 && code <= 0x0bff) tamil++;
+    else if (code >= 0x0900 && code <= 0x097f) hindi++;
+  }
+  if (telugu > 0 && telugu >= tamil && telugu >= hindi) return 'te-IN';
+  if (tamil > 0 && tamil >= telugu && tamil >= hindi) return 'ta-IN';
+  if (hindi > 0) return 'hi-IN';
+  return fallback;
+}
 
 const DEFAULT_LOCATION: LocationHint = { lat: 16.9891, lon: 82.2475, name: 'Kakinada' };
-
-const EXAMPLES = [
-  'Can I go fishing tomorrow morning near Kakinada?',
-  'What are the wave height and wind speed at my location?',
-  'Which fishing zones should be avoided due to geofencing restrictions?',
-  'Why has fish productivity declined in this coastal region?',
-  'Plot the safest route to the fishing grounds 25 nm east.',
-];
 
 export default function ChatScreen() {
   const router = useRouter();
   const online = useOnline();
   const [inputQuery, setInputQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   const {
     messages,
@@ -116,12 +133,13 @@ export default function ChatScreen() {
             });
           }
         } else {
+          const effectiveLang = detectScriptLanguage(text, language);
           const response = await queryApi.sendQuery(
             {
               text,
               conversation_id: currentConversationId || undefined,
               role,
-              language,
+              language: effectiveLang,
               location_hint: hint,
             },
             abortCtrl.signal
@@ -140,7 +158,7 @@ export default function ChatScreen() {
             responsePayload: response,
           });
           setLastLocationHint(hint);
-          speakReply(response.recommendation).catch(() => undefined);
+          speakReply(response.recommendation, response.language || effectiveLang).catch(() => undefined);
         }
       } catch (err: any) {
         if (err?.name === 'CanceledError' || err?.name === 'AbortError' || err?.code === 'ERR_CANCELED') {
@@ -183,6 +201,18 @@ export default function ChatScreen() {
     [handleSend],
   );
 
+  const handleSurpriseMe = () => {
+    const list = selectedCategory === 'all'
+      ? QUERY_PRESETS
+      : QUERY_PRESETS.filter((p) => p.category === selectedCategory);
+    const chosen = list[Math.floor(Math.random() * list.length)] || QUERY_PRESETS[0];
+    handleSend(chosen.text);
+  };
+
+  const activePresets = selectedCategory === 'all'
+    ? QUERY_PRESETS
+    : QUERY_PRESETS.filter((p) => p.category === selectedCategory);
+
   const renderItem = useCallback(
     ({ item }: { item: ChatMessage }) => (
       <ChatBubble
@@ -223,6 +253,16 @@ export default function ChatScreen() {
         </View>
 
         <View style={styles.headerActions}>
+          {/* Guide / Info Button */}
+          <PressableScale
+            style={styles.headerActionBtn}
+            onPress={() => setIsInfoModalOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="How to use Sagaradristi"
+          >
+            <Text style={styles.headerActionIcon}>ℹ️</Text>
+          </PressableScale>
+
           {/* New Chat Button */}
           <PressableScale style={styles.headerActionBtn} onPress={createNewChat}>
             <Text style={styles.headerActionIcon}>＋</Text>
@@ -250,30 +290,73 @@ export default function ChatScreen() {
         <ScrollView
           contentContainerStyle={styles.emptyContainer}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <FadeInView delay={40}>
+          <FadeInView delay={30}>
             <View style={styles.emblem}>
               <Text style={styles.emblemGlyph}>{brand.waveMark}</Text>
             </View>
           </FadeInView>
-          <FadeInDownView delay={140}>
+          <FadeInDownView delay={60}>
             <Text style={styles.brandName}>{brand.name}</Text>
             <Text style={styles.brandDev}>{brand.nameDevanagari}</Text>
             <Text style={styles.tagline}>{brand.tagline}</Text>
           </FadeInDownView>
 
-          <Text style={styles.hint}>Suggested Marine Queries</Text>
-          {EXAMPLES.map((q, i) => (
-            <FadeInDownView key={q} delay={220 + i * 70}>
-              <PressableScale
-                style={styles.exampleChip}
-                onPress={() => handleSend(q)}
-                accessibilityRole="button"
-              >
-                <Text style={styles.exampleText}>💡 {q}</Text>
-              </PressableScale>
-            </FadeInDownView>
-          ))}
+          {/* Preset Categories Selector Bar */}
+          <View style={styles.categoryContainer}>
+            <Text style={styles.hint}>Explore Prompt Presets</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryPillsScroll}
+            >
+              {QUERY_CATEGORIES.map((cat) => {
+                const isActive = selectedCategory === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.categoryPill, isActive && styles.categoryPillActive]}
+                    onPress={() => setSelectedCategory(cat.id)}
+                  >
+                    <Text style={[styles.categoryPillText, isActive && styles.categoryPillTextActive]}>
+                      {cat.icon} {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Surprise Me Button */}
+          <PressableScale
+            style={styles.surpriseBtn}
+            onPress={handleSurpriseMe}
+            accessibilityRole="button"
+          >
+            <Text style={styles.surpriseBtnText}>🎲 Surprise Me (Random Test Query)</Text>
+          </PressableScale>
+
+          {/* Active Preset Cards Grid */}
+          <View style={styles.presetsList}>
+            {activePresets.map((preset, i) => (
+              <FadeInDownView key={preset.text + i} delay={100 + i * 40}>
+                <PressableScale
+                  style={styles.presetCard}
+                  onPress={() => handleSend(preset.text)}
+                  accessibilityRole="button"
+                >
+                  <View style={styles.presetCardTop}>
+                    <Text style={styles.presetIcon}>{preset.icon}</Text>
+                    <Text style={styles.presetQuestion}>{preset.text}</Text>
+                  </View>
+                  {preset.subtitle && (
+                    <Text style={styles.presetSubtitle}>🏷️ {preset.subtitle}</Text>
+                  )}
+                </PressableScale>
+              </FadeInDownView>
+            ))}
+          </View>
         </ScrollView>
       ) : (
         <FlatList
@@ -303,6 +386,27 @@ export default function ChatScreen() {
           >
             <Text style={styles.cancelButtonText}>✕ Cancel</Text>
           </PressableScale>
+        </View>
+      )}
+
+      {/* Quick Follow-up Suggestions Bar (Shown during active chat) */}
+      {messages.length > 0 && !isLoading && (
+        <View style={styles.quickFollowUpBar}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickFollowUpScroll}
+          >
+            {QUICK_FOLLOW_UPS.map((q) => (
+              <TouchableOpacity
+                key={q}
+                style={styles.followUpChip}
+                onPress={() => handleSend(q)}
+              >
+                <Text style={styles.followUpChipText}>💬 {q}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
 
@@ -346,6 +450,46 @@ export default function ChatScreen() {
       <LocationPickerModal
         visible={isLocationPickerOpen}
         onClose={() => setIsLocationPickerOpen(false)}
+      />
+
+      {/* Advisory AI Guide Modal */}
+      <PageInfoModal
+        visible={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
+        icon="💬"
+        title="Marine Advisory AI"
+        subtitle="Conversational Ocean Decision Support"
+        whatIsIt="An intelligent marine assistant that analyzes live satellite observations, IMD weather forecasts, and safety rules to answer questions in your regional Indian language."
+        howToUse={[
+          'Type your question or tap the mic button 🎙️ next to Send to ask using voice in Telugu, Tamil, Hindi, or English.',
+          'Tap the harbor pill 📍 at the top to change your departure port (e.g. Kakinada, Chennai, Visakhapatnam).',
+          'Review the real-time Risk Band (0–100) and Sail Clearance decision generated by deterministic safety guardrails.',
+          'Tap "Show the Science (Going Deep)" on any message to view raw satellite evidence and data provenance.',
+          'Ask natural follow-up questions (e.g. "What about tomorrow morning there?") — the assistant remembers prior context!',
+        ]}
+        features={[
+          {
+            icon: '🎙️',
+            title: 'Multilingual Voice Intelligence',
+            description: 'Speak and receive audio readouts in Indian regional languages with Bhashini & Expo Speech.',
+          },
+          {
+            icon: '🛡️',
+            title: 'Deterministic Safety Guardrail',
+            description: 'Calculates non-linear risk scores from wave heights, gale winds, and cyclone proximity without hallucinations.',
+          },
+          {
+            icon: '🔄',
+            title: 'Multi-Session Conversation History',
+            description: 'All queries are organized into conversations, accessible via the clock button 🕒.',
+          },
+        ]}
+        legends={[
+          { badge: 'Low Risk', badgeBg: 'rgba(16,185,129,0.2)', badgeColor: '#10B981', label: 'Score < 30 · Safe sea conditions for coastal fishing' },
+          { badge: 'Moderate Risk', badgeBg: 'rgba(245,158,11,0.2)', badgeColor: '#F59E0B', label: 'Score 30–60 · Caution advised, check swell & wind' },
+          { badge: 'High Risk', badgeBg: 'rgba(249,115,22,0.2)', badgeColor: '#F97316', label: 'Score 60–80 · Departure restricted for small crafts' },
+          { badge: 'Extreme Risk', badgeBg: 'rgba(239,68,68,0.2)', badgeColor: '#EF4444', label: 'Score 80–100 · Active cyclone or gale warning, stay ashore' },
+        ]}
       />
     </KeyboardAvoidingView>
   );
@@ -484,29 +628,116 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: spacing.xs,
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.lg,
+  },
+  categoryContainer: {
+    width: '100%',
+    marginBottom: spacing.sm,
   },
   hint: {
     ...typography.caption,
     color: colors.textFaint,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
-  exampleChip: {
-    backgroundColor: colors.card,
+  categoryPillsScroll: {
+    gap: spacing.xs,
+    paddingVertical: 4,
+  },
+  categoryPill: {
+    backgroundColor: 'rgba(30, 41, 59, 0.7)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-    marginBottom: spacing.sm,
-    alignSelf: 'stretch',
   },
-  exampleText: {
-    color: colors.textSecondary,
+  categoryPillActive: {
+    backgroundColor: 'rgba(14, 116, 144, 0.5)',
+    borderColor: colors.accent,
+  },
+  categoryPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  categoryPillTextActive: {
+    color: colors.text,
+    fontWeight: '800',
+  },
+  surpriseBtn: {
+    backgroundColor: 'rgba(45, 212, 191, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(45, 212, 191, 0.4)',
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  surpriseBtnText: {
+    color: colors.aqua,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  presetsList: {
+    width: '100%',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  presetCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.8)',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  presetCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  presetIcon: {
+    fontSize: 16,
+  },
+  presetQuestion: {
+    flex: 1,
+    color: colors.text,
     fontSize: 13,
     fontWeight: '600',
+    lineHeight: 18,
+  },
+  presetSubtitle: {
+    fontSize: 11,
+    color: colors.textFaint,
+    marginTop: 4,
+    marginLeft: 24,
+  },
+  quickFollowUpBar: {
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    paddingVertical: 6,
+  },
+  quickFollowUpScroll: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  followUpChip: {
+    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  followUpChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
   },
   loadingRow: {
     flexDirection: 'row',

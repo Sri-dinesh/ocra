@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity } from 'react-native';
 import { useSettingsStore, ROLE_META, UserRole } from '../../src/store/settingsStore';
 import { useAlertStore } from '../../src/store/alertStore';
-import { colors, spacing, radius, typography, brand } from '../../src/theme/theme';
+import { useChatStore } from '../../src/store/chatStore';
+import { colors, spacing, radius, typography, brand, shadow } from '../../src/theme/theme';
 import { FadeInUpView, PressableScale } from '../../src/components/ui/anim';
+import { PageInfoModal } from '../../src/components/ui/PageInfoModal';
+import { PERSONA_PRESETS, PersonaPreset } from '../../src/constants/presets';
 
 const LANGUAGES = [
   { code: 'en-IN', label: 'English (India)' },
@@ -15,6 +18,7 @@ const LANGUAGES = [
 const ROLES = (Object.keys(ROLE_META) as UserRole[]);
 
 export default function ProfileScreen() {
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const {
     role,
     language,
@@ -25,20 +29,74 @@ export default function ProfileScreen() {
     setAutoVoicePlayback,
     setHapticsEnabled,
   } = useSettingsStore();
+  const { setLastLocationHint } = useChatStore();
   const vesselId = useAlertStore((s) => s.vesselId);
   const vesselLabel = useAlertStore((s) => s.vesselLabel);
   const subscription = useAlertStore((s) => s.subscription);
 
+  const handleApplyPersonaPreset = (preset: PersonaPreset) => {
+    setRole(preset.role);
+    setLanguage(preset.language);
+    setAutoVoicePlayback(preset.autoVoice);
+    setLastLocationHint(preset.location);
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
-        <Text style={styles.heroGlyph}>{brand.waveMark}</Text>
-        <Text style={styles.heroName}>{brand.name}</Text>
-        <Text style={styles.heroDev}>{brand.nameDevanagari}</Text>
+        <View style={styles.heroTopRow}>
+          <View style={{ width: 36 }} />
+          <View style={styles.heroCenter}>
+            <Text style={styles.heroGlyph}>{brand.waveMark}</Text>
+            <Text style={styles.heroName}>{brand.name}</Text>
+            <Text style={styles.heroDev}>{brand.nameDevanagari}</Text>
+          </View>
+          <PressableScale
+            style={styles.infoBtn}
+            onPress={() => setIsInfoModalOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Settings Guide"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.infoBtnText}>ℹ️</Text>
+          </PressableScale>
+        </View>
       </View>
 
+      {/* Quick Setup Persona Presets Bar */}
+      <FadeInUpView style={styles.presetSection}>
+        <Text style={styles.sectionBadge}>⚡ ONE-TAP TESTING PRESETS</Text>
+        <Text style={styles.sectionTitle}>Operational Crew Presets</Text>
+        <Text style={styles.sectionDesc}>
+          Instantly configures role, regional language, voice mode, and harbor for testing.
+        </Text>
+        <View style={styles.presetCardsGrid}>
+          {PERSONA_PRESETS.map((preset) => {
+            const isCurrent = role === preset.role && language === preset.language;
+            return (
+              <PressableScale
+                key={preset.id}
+                style={[styles.presetPersonaCard, isCurrent && styles.presetPersonaCardActive]}
+                onPress={() => handleApplyPersonaPreset(preset)}
+              >
+                <View style={styles.presetPersonaHeader}>
+                  <Text style={styles.presetPersonaIcon}>{preset.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.presetPersonaTitle, isCurrent && styles.presetPersonaTitleActive]}>
+                      {preset.title}
+                    </Text>
+                    <Text style={styles.presetPersonaSubtitle}>{preset.subtitle}</Text>
+                  </View>
+                  {isCurrent && <Text style={styles.presetPersonaCheck}>✓ ACTIVE</Text>}
+                </View>
+              </PressableScale>
+            );
+          })}
+        </View>
+      </FadeInUpView>
+
       <FadeInUpView>
-        <Text style={styles.sectionTitle}>Operational Persona</Text>
+        <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Operational Persona</Text>
         <Text style={styles.sectionDesc}>
           Tailors advice density, map layers, and alerts to your role.
         </Text>
@@ -136,6 +194,39 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </FadeInUpView>
+
+      {/* Settings Guide Modal */}
+      <PageInfoModal
+        visible={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
+        icon="⚙️"
+        title="Settings & Persona Preferences"
+        subtitle="Customizing Sagaradristi for Your Crew"
+        whatIsIt="Configure your operational role, preferred regional language for voice readouts, tactile haptics, and vessel watchdog subscription."
+        howToUse={[
+          'Select your Operational Persona (Fisherman, Marine Researcher, Coast Guard, Policymaker) to customize advice depth and terminology.',
+          'Choose your preferred regional language (English, தமிழ், हिन्दी, తెలుగు) for synthesized audio responses and recommendations.',
+          'Toggle "Auto voice playback" to automatically speak every incoming advisory aloud through Text-to-Speech (TTS).',
+          'Toggle "Haptics" for tactile vibration pulses on critical warning alerts and PTT recordings.',
+        ]}
+        features={[
+          {
+            icon: '🧑‍✈️',
+            title: 'Adaptive Persona Tailoring',
+            description: 'Customizes technical density — simple clearance advice for fishermen vs. depth contours, anomalies, and chlorophyll metrics for researchers.',
+          },
+          {
+            icon: '🔊',
+            title: 'Hands-Free Deck Voice',
+            description: 'High-clarity regional speech synthesis tailored for loud maritime boat environments.',
+          },
+          {
+            icon: '⚓',
+            title: 'Vessel Hardware ID',
+            description: 'Binds your unique vessel registration to real-time satellite telemetry and proactive hazard alerts.',
+          },
+        ]}
+      />
     </ScrollView>
   );
 }
@@ -150,8 +241,28 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   hero: {
-    alignItems: 'center',
     marginBottom: spacing.xl,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroCenter: {
+    alignItems: 'center',
+  },
+  infoBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoBtnText: {
+    fontSize: 16,
   },
   heroGlyph: {
     fontSize: 34,
@@ -167,6 +278,62 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 13,
     fontWeight: '600',
+  },
+  presetSection: {
+    marginBottom: spacing.md,
+  },
+  sectionBadge: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.aqua,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  presetCardsGrid: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  presetPersonaCard: {
+    backgroundColor: 'rgba(30, 41, 59, 0.7)',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.8)',
+  },
+  presetPersonaCardActive: {
+    backgroundColor: 'rgba(14, 116, 144, 0.25)',
+    borderColor: colors.aqua,
+  },
+  presetPersonaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  presetPersonaIcon: {
+    fontSize: 22,
+  },
+  presetPersonaTitle: {
+    ...typography.bodyStrong,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  presetPersonaTitleActive: {
+    color: colors.aqua,
+  },
+  presetPersonaSubtitle: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  presetPersonaCheck: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.aqua,
+    backgroundColor: 'rgba(45, 212, 191, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
   },
   sectionTitle: {
     ...typography.section,
