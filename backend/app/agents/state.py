@@ -1,5 +1,5 @@
 """Production Agent State Definitions for ORCA Multi-Agent StateGraph.
-Authoritative state schema flowing across all nodes and sub-agent boundaries.
+Authoritative state schema flowing across all nodes and specialized sub-agent boundaries.
 Owner: SRIDINESH (Lead)
 """
 
@@ -70,6 +70,53 @@ class GisTelemetry(TypedDict, total=False):
     source: str
 
 
+# ==============================================================================
+# SPECIALIZED AGENT DOMAIN TELEMETRY (SIH26176)
+# ==============================================================================
+
+class WeatherIntelligenceTelemetry(TypedDict, total=False):
+    agent_name: str
+    synoptic_summary: str
+    storm_distance_km: Optional[float]
+    is_squall_alert: bool
+    is_cyclone_alert: bool
+    pressure_trend_hpa: Optional[float]
+    weather_risk_index: float  # 0 to 100
+    weather_caveats: List[str]
+    advisory_bulletin: Optional[str]
+
+
+class OceanAnalyticsTelemetry(TypedDict, total=False):
+    agent_name: str
+    thermal_gradient_c_per_km: Optional[float]
+    upwelling_index: float  # 0 to 1.0
+    pfz_suitability_score: float  # 0 to 1.0
+    target_species: List[str]  # e.g., ["Yellowfin Tuna", "Indian Mackerel", "Sardines"]
+    is_thermal_front_present: bool
+    productivity_anomaly_detected: bool
+    anomaly_explanation: Optional[str]
+
+
+class NavigationIntelligenceTelemetry(TypedDict, total=False):
+    agent_name: str
+    navigation_status: str  # CLEAR, CAUTION, RESTRICTED, FORBIDDEN
+    nearest_sanctuary_name: Optional[str]
+    sanctuary_distance_nm: Optional[float]
+    imbl_buffer_status: str  # SAFE, WARNING, BREACH
+    suggested_waypoints: List[Dict[str, float]]
+    avoidance_reason: Optional[str]
+
+
+class CriticAuditRecord(TypedDict, total=False):
+    agent_name: str
+    audit_passed: bool
+    contradiction_detected: bool
+    corrected_recommendation: Optional[str]
+    ungrounded_tokens_pruned: List[str]
+    confidence_rating: str  # HIGH, MODERATE, LOW
+    audit_notes: List[str]
+
+
 class EvidenceItemRecord(TypedDict, total=False):
     id: str
     claim: str
@@ -111,6 +158,12 @@ class AgentState(TypedDict, total=False):
     weather_data: Optional[WeatherTelemetry]
     gis_data: Optional[GisTelemetry]
     
+    # Specialized Multi-Agent Intelligence Layer
+    weather_intelligence: Optional[WeatherIntelligenceTelemetry]
+    ocean_analytics: Optional[OceanAnalyticsTelemetry]
+    navigation_intelligence: Optional[NavigationIntelligenceTelemetry]
+    critic_audit: Optional[CriticAuditRecord]
+
     # Guardrail & Reasoning
     evidence: List[EvidenceItemRecord]
     risk_score: Optional[float]  # 0.0 to 100.0

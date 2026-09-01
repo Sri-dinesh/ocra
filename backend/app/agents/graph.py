@@ -1,7 +1,9 @@
-"""Production-Grade LangGraph Multi-Agent Orchestration Graph.
+"""Production-Grade LangGraph Multi-Agent Orchestration Graph (SIH26176).
 Features:
 - Stateful multi-agent graph with parallel domain gathering.
-- Direct integration with Charan's live geospatial fusion, IMD connector, and PostGIS geofencing.
+- Modular Specialized Agents: WeatherIntelligenceAgent, OceanAnalyticsAgent, GeospatialNavigationAgent.
+- Reflection & Self-Correction via CriticAuditorAgent.
+- Direct integration with live geospatial fusion, IMD connector, and PostGIS geofencing.
 - Node-level latency profiling and execution telemetry.
 - Clarification short-circuiting and graceful error recovery.
 Owner: SRIDINESH (Lead)
@@ -13,6 +15,10 @@ import datetime
 from typing import Dict, Any, List, Optional
 from app.agents.state import AgentState, ExecutionTelemetry
 from app.agents.planner_agent import plan
+from app.agents.weather_agent import WeatherIntelligenceAgent
+from app.agents.ocean_agent import OceanAnalyticsAgent
+from app.agents.navigation_agent import GeospatialNavigationAgent
+from app.agents.critic_agent import CriticAuditorAgent
 from app.reasoning.guardrail import run_guardrail
 from app.reasoning.risk_engine import evaluate_risk_and_recommendation
 from app.agents.synthesis_agent import synthesize
@@ -29,7 +35,7 @@ _imd_connector = ImdBulletinConnector()
 
 
 async def fetch_ocean_data(lat: float, lon: float, time_str: Optional[str] = None) -> Dict[str, Any]:
-    """Asynchronously calls Charan's geospatial fusion engine."""
+    """Asynchronously calls geospatial fusion engine."""
     if time_str:
         try:
             clean_str = time_str.replace("Z", "+00:00")
@@ -119,7 +125,7 @@ async def node_planner(state: AgentState) -> AgentState:
 
 
 async def node_parallel_domains(state: AgentState) -> AgentState:
-    """Parallel Domain Sub-Agent Gathering Node."""
+    """Parallel Domain Sub-Agent Gathering & Specialized Domain Reasoning Node."""
     logger.info("[LangGraph] Executing Node: Parallel Domain Agents")
     
     loc = state.get("location") or {"lat": 16.9891, "lon": 82.2475}
@@ -158,6 +164,35 @@ async def node_parallel_domains(state: AgentState) -> AgentState:
         else:
             state[key] = res
 
+    # ==========================================================================
+    # EXECUTE SPECIALIZED DOMAIN INTELLIGENCE AGENTS (SIH26176)
+    # ==========================================================================
+    ocean_data = state.get("ocean_data")
+    weather_data = state.get("weather_data")
+    gis_data = state.get("gis_data")
+    wind_kt = ocean_data.get("wind_speed_kt") if ocean_data else None
+    wave_m = ocean_data.get("wave_height_m") if ocean_data else None
+
+    # 1. Weather Intelligence Agent
+    state["weather_intelligence"] = WeatherIntelligenceAgent.analyze(
+        weather_data=weather_data,
+        location=state.get("location"),
+        wind_speed_kt=wind_kt,
+    )
+
+    # 2. Ocean Analytics & PFZ Agent
+    state["ocean_analytics"] = OceanAnalyticsAgent.analyze(
+        ocean_data=ocean_data,
+        location=state.get("location"),
+    )
+
+    # 3. Geospatial & Navigation Agent
+    state["navigation_intelligence"] = GeospatialNavigationAgent.analyze(
+        gis_data=gis_data,
+        location=state.get("location"),
+        wave_height_m=wave_m,
+    )
+
     return state
 
 
@@ -177,6 +212,12 @@ async def node_synthesis(state: AgentState) -> AgentState:
     """Grounded Synthesis Node."""
     logger.info("[LangGraph] Executing Node: Grounded Multilingual Synthesis")
     return await synthesize(state)
+
+
+async def node_critic(state: AgentState) -> AgentState:
+    """Critic & Grounding Auditor Agent Node (Reflection Pattern)."""
+    logger.info("[LangGraph] Executing Node: Critic & Grounding Auditor")
+    return CriticAuditorAgent.audit(state)
 
 
 async def run_agent_graph(initial_state: AgentState) -> AgentState:
@@ -204,8 +245,9 @@ async def run_agent_graph(initial_state: AgentState) -> AgentState:
         }
         return state
 
-    # Step 3: Concurrent Domain Agents
+    # Step 3: Concurrent Domain Gathering + Specialized Agents
     nodes_visited.append("Domain_Gathering")
+    nodes_visited.append("Specialized_Domain_Agents")
     state = await node_parallel_domains(state)
 
     # Step 4: Deterministic Guardrail Gate
@@ -219,6 +261,10 @@ async def run_agent_graph(initial_state: AgentState) -> AgentState:
     # Step 6: Grounded Synthesis
     nodes_visited.append("Synthesis")
     state = await node_synthesis(state)
+
+    # Step 7: Critic & Grounding Auditor (Reflection & Self-Correction)
+    nodes_visited.append("Critic_Auditor")
+    state = await node_critic(state)
 
     end_epoch = time.perf_counter()
     latency_ms = round((end_epoch - start_epoch) * 1000.0, 2)
