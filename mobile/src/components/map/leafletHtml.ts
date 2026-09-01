@@ -116,19 +116,58 @@ function renderPfz(points) {
 
 // ---- Routes ---------------------------------------------------------------
 function drawRoute(payload) {
+  if (!map.hasLayer(astarLayer)) astarLayer.addTo(map);
+  if (!map.hasLayer(naiveLayer)) naiveLayer.addTo(map);
+
   if (payload && payload.type === 'ASTAR') {
     astarLayer.clearLayers();
     if (payload.points && payload.points.length > 1) {
-      L.polyline(payload.points.map(function (p) { return [p.lat, p.lon]; }), {
-        color:'#2DD4BF', weight:4, opacity:.95, lineJoin:'round'
-      }).addTo(astarLayer).bindPopup('<b>A* collision-free route</b>');
+      var pts = payload.points.map(function (p) { return [p.lat, p.lon]; });
+      var poly = L.polyline(pts, {
+        color: '#2DD4BF',
+        weight: 5,
+        opacity: 0.95,
+        lineJoin: 'round',
+        lineCap: 'round'
+      }).addTo(astarLayer);
+      poly.bindPopup('<b>🧭 A* Safe Navigation Route</b><br>' + pts.length + ' waypoints · Obstacle Free');
+
+      // Add Start & Destination Badges
+      var startPt = pts[0];
+      var goalPt = pts[pts.length - 1];
+
+      var startIcon = L.divIcon({
+        className: '',
+        html: '<div style="background:#0F766E;color:#fff;font-size:10px;font-weight:900;padding:3px 7px;border-radius:12px;border:2px solid #2DD4BF;box-shadow:0 3px 8px rgba(0,0,0,0.6);white-space:nowrap;">🚩 DEPARTURE</div>',
+        iconSize: [80, 22],
+        iconAnchor: [40, 26]
+      });
+      L.marker(startPt, { icon: startIcon, zIndexOffset: 900 }).addTo(astarLayer);
+
+      var goalIcon = L.divIcon({
+        className: '',
+        html: '<div style="background:#B45309;color:#fff;font-size:10px;font-weight:900;padding:3px 7px;border-radius:12px;border:2px solid #F59E0B;box-shadow:0 3px 8px rgba(0,0,0,0.6);white-space:nowrap;">🎯 DESTINATION</div>',
+        iconSize: [95, 22],
+        iconAnchor: [47, 26]
+      });
+      L.marker(goalPt, { icon: goalIcon, zIndexOffset: 900 }).addTo(astarLayer);
+
+      try {
+        var bounds = L.latLngBounds(pts);
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 12, animate: true });
+      } catch (err) {}
     }
   } else if (payload && payload.type === 'NAIVE') {
     naiveLayer.clearLayers();
     if (payload.points && payload.points.length > 1) {
-      L.polyline(payload.points.map(function (p) { return [p.lat, p.lon]; }), {
-        color:'#EF4444', weight:2, opacity:.7, dashArray:'6 8'
-      }).addTo(naiveLayer).bindPopup('<b>Naive straight line — crosses IMBL</b>');
+      var pts2 = payload.points.map(function (p) { return [p.lat, p.lon]; });
+      L.polyline(pts2, {
+        color: '#EF4444',
+        weight: 3,
+        opacity: 0.8,
+        dashArray: '6, 8',
+        lineJoin: 'round'
+      }).addTo(naiveLayer).bindPopup('<b>⚠️ Naive Straight Line</b><br>Crosses protected/hazardous zones');
     }
   } else {
     astarLayer.clearLayers();
@@ -149,16 +188,23 @@ function setVessel(vlat, vlon) {
 // ---- Layer visibility -----------------------------------------------------
 function setLayers(active) {
   var want = active || [];
-  var mapping = { 'pfz': pfzLayer, 'geofence': imblLayer, 'imbl': imblLayer, 'mpa': mpaLayer };
+  var mapping = { 'pfz': pfzLayer, 'geofence': imblLayer, 'imbl': imblLayer, 'mpa': mpaLayer, 'route': astarLayer };
   Object.keys(mapping).forEach(function (k) {
     var layer = mapping[k];
-    if (want.indexOf(k) >= 0) { if (!map.hasLayer(layer)) layer.addTo(map); }
-    else { if (map.hasLayer(layer)) map.removeLayer(layer); }
+    if (layer) {
+      if (want.indexOf(k) >= 0) { if (!map.hasLayer(layer)) layer.addTo(map); }
+      else { if (map.hasLayer(layer)) map.removeLayer(layer); }
+    }
   });
 }
 
-// Expose map globally on window for direct JS injection
+// Expose functions globally on window for direct JS injection
 window.map = map;
+window.drawRoute = drawRoute;
+window.setVessel = setVessel;
+window.renderPfz = renderPfz;
+window.renderGeofences = renderGeofences;
+window.setLayers = setLayers;
 
 // ---- Bridge ---------------------------------------------------------------
 function handleMessage(event) {

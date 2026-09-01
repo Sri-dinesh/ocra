@@ -56,6 +56,8 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, Props>(
         webViewRef.current?.postMessage(JSON.stringify({ type: 'FOCUS', lat, lon, zoom: z || 9 }));
       },
       drawRoute(style) {
+        const payload = JSON.stringify({ type: style.type, points: buildGeo(style.points) });
+        webViewRef.current?.injectJavaScript(`if (typeof window.drawRoute === 'function') { window.drawRoute(${payload}); } true;`);
         webViewRef.current?.postMessage(
           JSON.stringify({
             type: 'DRAW_ROUTE',
@@ -64,21 +66,29 @@ export const LeafletMapView = forwardRef<LeafletMapHandle, Props>(
         );
       },
       clearRoutes() {
+        webViewRef.current?.injectJavaScript(`if (typeof window.drawRoute === 'function') { window.drawRoute(null); } true;`);
         webViewRef.current?.postMessage(JSON.stringify({ type: 'DRAW_ROUTE' }));
       },
       setVessel(lat, lon) {
-        webViewRef.current?.injectJavaScript(`if (typeof setVessel === 'function') { setVessel(${lat}, ${lon}); } true;`);
+        webViewRef.current?.injectJavaScript(`if (typeof window.setVessel === 'function') { window.setVessel(${lat}, ${lon}); } true;`);
         webViewRef.current?.postMessage(JSON.stringify({ type: 'SET_VESSEL', lat, lon }));
       },
       setPfz(points) {
+        const payload = JSON.stringify(buildGeo(points));
+        webViewRef.current?.injectJavaScript(`if (typeof window.renderPfz === 'function') { window.renderPfz(${payload}); } true;`);
         webViewRef.current?.postMessage(JSON.stringify({ type: 'SET_PFZ', points: buildGeo(points) }));
       },
       setGeofences(imbl, mpa) {
+        const payloadImbl = JSON.stringify(buildGeo(imbl));
+        const payloadMpa = JSON.stringify(buildGeo(mpa));
+        webViewRef.current?.injectJavaScript(`if (typeof window.renderGeofences === 'function') { window.renderGeofences(${payloadImbl}, ${payloadMpa}); } true;`);
         webViewRef.current?.postMessage(
           JSON.stringify({ type: 'SET_GEOFENCES', imbl: buildGeo(imbl), mpa: buildGeo(mpa) }),
         );
       },
       setLayers(active) {
+        const payload = JSON.stringify(active);
+        webViewRef.current?.injectJavaScript(`if (typeof window.setLayers === 'function') { window.setLayers(${payload}); } true;`);
         webViewRef.current?.postMessage(JSON.stringify({ type: 'SET_LAYERS', active }));
       },
       zoomIn() {
