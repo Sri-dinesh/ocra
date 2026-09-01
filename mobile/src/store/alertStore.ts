@@ -24,6 +24,7 @@ interface AlertState {
   clearAlerts: () => void;
   markAllRead: () => void;
   setVesselLabel: (label: string) => void;
+  triggerDemoHazard: (kind: 'imbl' | 'cyclone' | 'wave') => void;
 }
 
 const DEFAULTS = {
@@ -126,4 +127,41 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   clearAlerts: () => set({ alerts: [], unreadCount: 0 }),
   markAllRead: () => set({ unreadCount: 0 }),
   setVesselLabel: (vesselLabel) => set({ vesselLabel }),
+  triggerDemoHazard: (kind) => {
+    const vesselId = get().vesselId || 'demo-vessel-01';
+    let newAlert: WatchdogAlert;
+    const now = new Date().toISOString();
+
+    if (kind === 'imbl') {
+      newAlert = {
+        vessel_id: vesselId,
+        alert_type: 'imbl_proximity',
+        severity: 'critical',
+        message: 'CRITICAL: Vessel is within 3.8 nm of the International Maritime Boundary Line (IMBL). Reverse course heading 270° West immediately.',
+        triggered_at: now,
+      };
+    } else if (kind === 'cyclone') {
+      newAlert = {
+        vessel_id: vesselId,
+        alert_type: 'cyclone_warning',
+        severity: 'high',
+        message: 'CYCLONE ALERT: Deep Depression BOB-03 moving NW at 18 knots. Gusts exceeding 45 knots expected within 6 hours. Seek harbor shelter.',
+        triggered_at: now,
+      };
+    } else {
+      newAlert = {
+        vessel_id: vesselId,
+        alert_type: 'wave_spike',
+        severity: 'moderate',
+        message: 'HIGH SWELL WARNING: Significant wave heights approaching 3.2m due to incoming southern swell. Small craft caution advised.',
+        triggered_at: now,
+      };
+    }
+
+    set((s) => ({
+      alerts: [newAlert, ...s.alerts.filter((a) => a.alert_type !== newAlert.alert_type)],
+      unreadCount: s.unreadCount + 1,
+      vesselId: s.vesselId || 'demo-vessel-01',
+    }));
+  },
 }));
