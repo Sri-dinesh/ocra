@@ -8,15 +8,21 @@ import {
 } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { PressableScale, PulseRing } from '../ui/anim';
-import { colors, spacing, radius, typography } from '../../theme/theme';
+import { colors, radius, shadow } from '../../theme/theme';
 
 interface Props {
   onRecordingComplete?: (audioUri: string) => void;
   isProcessing?: boolean;
   disabled?: boolean;
+  compact?: boolean;
 }
 
-export const PushToTalkButton: React.FC<Props> = ({ onRecordingComplete, isProcessing, disabled }) => {
+export const PushToTalkButton: React.FC<Props> = ({
+  onRecordingComplete,
+  isProcessing,
+  disabled,
+  compact = true,
+}) => {
   const [isRecording, setIsRecording] = useState(false);
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
@@ -64,70 +70,87 @@ export const PushToTalkButton: React.FC<Props> = ({ onRecordingComplete, isProce
     }
   };
 
-  const idle = !isRecording && !isProcessing;
-
   return (
-    <View style={styles.wrap}>
-      <PulseRing color={isRecording ? colors.alertDanger : colors.aqua} active={isRecording} />
+    <View style={styles.container}>
+      {isRecording && (
+        <View style={styles.pulseContainer}>
+          <PulseRing color={colors.alertDanger} active={true} />
+        </View>
+      )}
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel="Push to talk"
-        accessibilityState={{ busy: isProcessing, selected: isRecording, disabled: disabled || isProcessing }}
+        accessibilityLabel="Push to talk - Hold to speak"
+        accessibilityState={{
+          busy: isProcessing,
+          selected: isRecording,
+          disabled: disabled || isProcessing,
+        }}
         disabled={disabled || isProcessing}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={[
           styles.button,
+          compact ? styles.buttonCompact : styles.buttonLarge,
           isRecording ? styles.recording : styles.idle,
           (disabled || isProcessing) && styles.disabled,
         ]}
       >
-        <Text style={styles.micIcon}>{isRecording ? '🔴' : '🎙️'}</Text>
+        <Text style={[styles.micIcon, compact ? styles.micIconCompact : styles.micIconLarge]}>
+          {isRecording ? '🔴' : '🎙️'}
+        </Text>
       </PressableScale>
-      <Text style={[styles.label, isRecording && styles.labelRecording]}>
-        {isProcessing ? 'Sagaradristi is thinking…' : isRecording ? 'Listening…' : idle ? 'Hold to speak' : 'Wait…'}
-      </Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  wrap: {
+  container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
+    position: 'relative',
+  },
+  pulseContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 44,
+    height: 44,
   },
   button: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+  },
+  buttonCompact: {
+    width: 42,
+    height: 42,
+  },
+  buttonLarge: {
+    width: 56,
+    height: 56,
   },
   idle: {
     backgroundColor: colors.card,
     borderColor: colors.accent,
+    ...shadow.card,
   },
   recording: {
     backgroundColor: colors.alertDangerBg,
     borderColor: colors.alertDanger,
   },
   disabled: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.borderSubtle,
     borderColor: colors.border,
-    opacity: 0.7,
+    opacity: 0.6,
   },
   micIcon: {
-    fontSize: 26,
+    textAlign: 'center',
   },
-  label: {
-    marginTop: spacing.xs,
-    ...typography.caption,
-    color: colors.textMuted,
+  micIconCompact: {
+    fontSize: 18,
   },
-  labelRecording: {
-    color: colors.alertDanger,
-    fontWeight: '800',
+  micIconLarge: {
+    fontSize: 24,
   },
 });

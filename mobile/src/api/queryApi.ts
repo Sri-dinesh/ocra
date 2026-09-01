@@ -4,9 +4,9 @@ import { oceanstateApi } from './oceanstateApi';
 import { sqliteCache } from '../offline/sqliteCache';
 
 export const queryApi = {
-  async sendQuery(req: QueryRequest): Promise<QueryResponse> {
-    const response = await apiClient.post<QueryResponse>('/api/v1/query', req);
-    
+  async sendQuery(req: QueryRequest, signal?: AbortSignal): Promise<QueryResponse> {
+    const response = await apiClient.post<QueryResponse>('/api/v1/query', req, { signal });
+
     // Prime local SQLite edge cache in background for offline support
     if (req.location_hint) {
       const { lat, lon } = req.location_hint;
