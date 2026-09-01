@@ -63,8 +63,8 @@ export const sttService = {
 };
 
 /** Autoplay an assistant reply through TTS when enabled in settings. */
-export async function speakReply(reply: string): Promise<void> {
-  const { autoVoicePlayback, language } = useSettingsStore.getState();
+export async function speakReply(reply: string, lang?: string): Promise<void> {
+  const { autoVoicePlayback, language: defaultLang } = useSettingsStore.getState();
   if (!autoVoicePlayback) return;
-  await ttsService.speak(reply, language);
+  await ttsService.speak(reply, lang || defaultLang);
 }

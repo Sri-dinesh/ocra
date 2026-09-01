@@ -89,6 +89,13 @@ export const shadow = {
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
+  md: {
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
   float: {
     shadowColor: colors.aqua,
     shadowOpacity: 0.35,
