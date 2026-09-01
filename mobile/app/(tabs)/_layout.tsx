@@ -15,16 +15,16 @@ export default function TabLayout() {
         headerTintColor: colors.accent,
         headerTitleStyle: { fontWeight: '800', fontSize: 17 },
         headerShadowVisible: false,
+        headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.borderSubtle,
-          height: 58,
-          paddingBottom: 6,
-          paddingTop: 6,
+          paddingTop: 8,
+          // Let React Navigation handle safe area padding automatically
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textFaint,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', paddingBottom: 4 },
       }}
     >
       <Tabs.Screen

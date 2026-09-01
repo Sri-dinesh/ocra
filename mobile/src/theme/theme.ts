@@ -4,13 +4,13 @@
  */
 
 export const colors = {
-  // Canvas
-  bg: '#0A192F',        // deep ocean navy (base canvas)
-  surface: '#0F172A',   // header / nav / input bars
+  // Canvas - sleek neutral dark (Tailwind Slate-950/900)
+  bg: '#020617',        // deep sleek dark (base canvas)
+  surface: '#0F172A',   // header / nav / input bars (slightly lighter)
   card: '#1E293B',      // raised cards
-  cardSelected: '#0F2644',
-  border: '#334155',
-  borderSubtle: '#1E293B',
+  cardSelected: '#0F2644', // subtle highlight
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderSubtle: 'rgba(255, 255, 255, 0.04)',
 
   // Accents
   accent: '#38BDF8',    // primary cyan — metadata / navigation / links
@@ -25,7 +25,7 @@ export const colors = {
   textFaint: '#64748B',
 
   // User / roles
-  userBubble: '#007AFF',
+  userBubble: '#0EA5E9',
   userBubbleText: '#FFFFFF',
 
   // Risk bands (low → extreme)
@@ -34,74 +34,75 @@ export const colors = {
   riskHigh: '#F97316',
   riskExtreme: '#EF4444',
 
-  // Watchdog / alerts
+  // Watchdog / alerts - softer background variants
   alertDanger: '#EF4444',
-  alertDangerBg: '#7F1D1D',
+  alertDangerBg: 'rgba(239, 68, 68, 0.1)',
   alertDangerText: '#FEE2E2',
-  offlineWarn: '#B45309',
+  offlineWarn: '#F59E0B',
   offlineWarnText: '#FEF3C7',
 
   // Innovation / glow
-  glowAqua: 'rgba(45, 212, 191, 0.35)',
-  glowCyan: 'rgba(56, 189, 248, 0.35)',
+  glowAqua: 'rgba(45, 212, 191, 0.25)',
+  glowCyan: 'rgba(56, 189, 248, 0.25)',
 
   // Map accents
   routeAstar: '#2DD4BF',
   routeNaive: '#EF4444',
-  imblFill: 'rgba(239, 68, 68, 0.22)',
-  mpaFill: 'rgba(245, 158, 11, 0.20)',
+  imblFill: 'rgba(239, 68, 68, 0.15)',
+  mpaFill: 'rgba(245, 158, 11, 0.15)',
   pfzPin: '#F59E0B',
 } as const;
 
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
+  xs: 6,
+  sm: 10,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 40,
 } as const;
 
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  sm: 10,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 40,
   pill: 999,
 } as const;
 
 export const typography = {
-  hero: { fontSize: 30, fontWeight: '800', lineHeight: 38 },
-  title: { fontSize: 20, fontWeight: '800', lineHeight: 26 },
-  section: { fontSize: 17, fontWeight: '700', lineHeight: 22 },
-  body: { fontSize: 15, fontWeight: '400', lineHeight: 21 },
-  bodyStrong: { fontSize: 15, fontWeight: '600', lineHeight: 21 },
-  caption: { fontSize: 12, fontWeight: '600', lineHeight: 16 },
-  metric: { fontSize: 24, fontWeight: '800', lineHeight: 28 },
-  chip: { fontSize: 12, fontWeight: '700', lineHeight: 16 },
+  hero: { fontSize: 32, fontWeight: '700', lineHeight: 40, letterSpacing: -0.5 },
+  title: { fontSize: 22, fontWeight: '700', lineHeight: 28, letterSpacing: -0.3 },
+  section: { fontSize: 18, fontWeight: '600', lineHeight: 24, letterSpacing: -0.2 },
+  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
+  bodyStrong: { fontSize: 16, fontWeight: '500', lineHeight: 24 },
+  caption: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
+  metric: { fontSize: 28, fontWeight: '700', lineHeight: 32, letterSpacing: -0.5 },
+  chip: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
 } as const;
 
 export const shadow = {
   card: {
     shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
   md: {
     shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
   },
   float: {
-    shadowColor: colors.aqua,
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 12,
   },
 } as const;
 
