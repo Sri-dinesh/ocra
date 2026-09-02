@@ -125,11 +125,7 @@ Given the user's query, a role, a language, and an optional location hint, extra
    - route_request → ["gis"]
    - general_query → whichever of the three the query concerns
 
-HARD RULE: if you cannot confidently resolve BOTH a location and a time window
-(where the intent requires them), you MUST set intent to "clarification_needed"
-and required_agents to []. Do not guess a plausible-sounding location or time.
-Guessing here causes the system to fetch data for the wrong place, which is a
-safety failure, not a UX inconvenience.
+RULE: If location_hint is provided or a port/place name is identified, resolve location to it. If no time expression is explicitly mentioned, default time_window to the next 6 hours starting from current_datetime. Only set intent to "clarification_needed" if no location is determinable and the query is fundamentally ambiguous.
 """
 
 

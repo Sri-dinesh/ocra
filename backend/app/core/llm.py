@@ -25,10 +25,11 @@ except ImportError:
 
 # Priority Frontier Models Pool for Google Gemini API
 FRONTIER_MODEL_POOL = [
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-flash-lite-latest",
     "gemini-3.5-flash",
-    "gemini-3.1-pro-preview",
+    "gemini-3.6-flash",
 ]
 
 
@@ -191,7 +192,63 @@ class GeminiClient:
                     if attempt < self.max_retries:
                         await asyncio.sleep(self.initial_backoff_seconds * (2 ** (attempt - 1)))
 
-        return {}
+    async def transcribe_audio(
+        self,
+        audio_bytes: bytes,
+        mime_type: str = "audio/m4a",
+        language_hint: str = "en-IN",
+    ) -> str:
+        """Transcribe speech in any Indian or international language with Gemini."""
+        if not self.is_configured() or not audio_bytes:
+            return ""
+
+        lang_prompt = (
+            f"You are a highly accurate multilingual speech-to-text transcriber for a maritime decision platform. "
+            f"Transcribe the spoken audio into text exactly as uttered by the user. "
+            f"Language hint: {language_hint}. "
+            f"Support Indian English, Tamil, Telugu, Hindi, Malayalam, Bengali, and Gujarati. "
+            f"If the audio is in Tamil or Telugu or Hindi, transcribe in the same script or English phonetic equivalent as appropriate. "
+            f"Output ONLY the exact transcribed sentence with no quotes, no formatting, and no commentary. "
+            f"If the audio contains no discernible speech, output EMPTY."
+        )
+
+        try:
+            part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+        except Exception as e:
+            logger.warning(f"Failed to create Part from audio bytes: {e}")
+            return ""
+
+        config = types.GenerateContentConfig(
+            temperature=0.0,
+            max_output_tokens=256,
+        )
+
+        for attempt in range(1, self.max_retries + 1):
+            model_to_use = self._get_next_model()
+            try:
+                response = await self._client.aio.models.generate_content(
+                    model=model_to_use,
+                    contents=[part, lang_prompt],
+                    config=config,
+                )
+                text = response.text.strip() if response.text else ""
+                if text.upper() in ["EMPTY", "EMPTY.", "SILENCE", "NONE", "NO AUDIO", "NO SPEECH DETECTED"]:
+                    return ""
+                text = text.strip('"\'`')
+                if text:
+                    logger.info(f"Gemini transcribe_audio ({model_to_use}) succeeded: '{text}'")
+                    return text
+            except Exception as e:
+                err_str = str(e)
+                if any(code in err_str for code in ["429", "RESOURCE_EXHAUSTED", "404", "NOT_FOUND", "not found"]):
+                    self._mark_rate_limited(model_to_use, cooldown_seconds=60.0)
+                    await asyncio.sleep(0.05)
+                else:
+                    logger.warning(f"Gemini transcribe attempt {attempt} on '{model_to_use}' failed: {e}")
+                    if attempt < self.max_retries:
+                        await asyncio.sleep(self.initial_backoff_seconds * (2 ** (attempt - 1)))
+
+        return ""
 
 
 llm_client = GeminiClient()
