@@ -197,8 +197,14 @@ export default function ChatScreen() {
 
   const handlePushToTalk = useCallback(
     async (uri: string) => {
-      const transcript = await sttService.transcribe(uri, useSettingsStore.getState().language);
-      handleSend(transcript);
+      try {
+        const transcript = await sttService.transcribe(uri, useSettingsStore.getState().language);
+        if (transcript && transcript.trim()) {
+          handleSend(transcript.trim());
+        }
+      } catch (err) {
+        console.warn('[PTT] Transcription error:', err);
+      }
     },
     [handleSend],
   );

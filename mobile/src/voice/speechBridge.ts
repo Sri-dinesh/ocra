@@ -27,12 +27,15 @@ let voiceQueryIndex = 0;
 export const sttService = {
   async transcribe(audioUri: string, language: string = 'en-IN'): Promise<string> {
     try {
+      console.log('[STT] Uploading audio clip for transcription:', audioUri);
       const formData = new FormData();
-      formData.append('file', {
-        uri: Platform.OS === 'android' ? audioUri : audioUri.replace('file://', ''),
+      
+      const fileData: any = {
+        uri: audioUri,
         type: 'audio/m4a',
         name: 'voice_input.m4a',
-      } as any);
+      };
+      formData.append('file', fileData);
       formData.append('language', language);
 
       const baseUrl = API_BASE_URL;
@@ -47,18 +50,22 @@ export const sttService = {
       if (res.ok) {
         const data = await res.json();
         if (data.text && data.text.trim()) {
-          console.log('[STT] Transcribed text:', data.text);
+          console.log('[STT] Successfully transcribed speech:', data.text.trim());
           return data.text.trim();
         }
+        if (data.status === 'empty' || !data.text) {
+          console.log('[STT] No speech detected in audio.');
+          return '';
+        }
+      } else {
+        const errText = await res.text();
+        console.warn(`[STT] Backend returned status ${res.status}:`, errText);
       }
     } catch (err) {
-      console.warn('[STT] Live voice transcription upload note:', err);
+      console.warn('[STT] Live voice transcription upload failed:', err);
     }
 
-    // Fallback if offline
-    const nextQuery = VOICE_DEMO_QUERIES[voiceQueryIndex % VOICE_DEMO_QUERIES.length];
-    voiceQueryIndex++;
-    return nextQuery;
+    return '';
   },
 };
 
